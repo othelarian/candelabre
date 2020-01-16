@@ -1,0 +1,19 @@
+[package]
+name = "candelabre-examples"
+version = "0.1.0"
+authors = ["othelarian <le.maitre.killian@gmail.com>"]
+edition = "2018"
+homepage = ""
+repository = ""
+documentation = ""
+readme = "README.md"
+
+[[bin]]
+name = "simple_window"
+path = "src/simple_window.rs"
+
+#[[bin]]
+#name = "multi_windows"
+#path = "src/multi_windows.rs"
+
+[dependencies]

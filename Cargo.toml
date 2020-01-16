@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
-    "candelabre-windowing",
-    "candelabre-widgets"
+    "candelabre-examples",
+    "candelabre-widgets",
+    "candelabre-windowing"
 ]

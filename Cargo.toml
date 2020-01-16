@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "candelabre-windowing",
+    "candelabre-widgets"
+]

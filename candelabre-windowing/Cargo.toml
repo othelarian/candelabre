@@ -5,3 +5,12 @@ authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+gl = "0.14.0"
+glutin = {version = "0.22.0", default-features = false}
+takeable-option = "0.5.0"
+
+[dependencies.luminance]
+#version = "0.38.0"
+git = "https://github.com/othelarian/luminance-rs.git"
+branch = "multiwin"
+features = ["multi-contexts"]

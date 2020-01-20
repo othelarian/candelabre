@@ -16,22 +16,24 @@ fn create_window() -> Result<(), String> {
 }
 
 #[test]
-fn create_window_manager() {
-    //
-    //
-    //
-}
-
-#[test]
-fn open_multi_windows() {
-    //
-    //
-    //
-}
-
-#[test]
-fn swap_between_windows() {
-    //
-    //
-    //
+fn open_multi_windows() -> Result<(), String> {
+    let el = EventLoop::new();
+    let mut win_manager = CandlManager::new();
+    for win_idx in 0..3 {
+        &win_manager.create_window(
+            &el,
+            CandlDimension::Classic(800, 400),
+            &format!("test candelabre multi window: #{}", win_idx+1),
+            CandlOptions::default()
+        ).unwrap();
+    }
+    let ids = win_manager.list_windowIds();
+    for idx in &ids {
+        win_manager.get_current(idx.clone());
+    }
+    for idx in &ids {
+        win_manager.remove_window(idx.clone());
+    }
+    if win_manager.is_empty() { Ok(()) }
+    else { Err(String::from("Test failed: CandlManager not empty!")) }
 }

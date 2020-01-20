@@ -338,6 +338,9 @@ impl CandlManager {
         }
     }
 
+    /// vector with all the WindowId managed by the CandlManager
+    pub fn list_windowIds(&self) -> Vec<WindowId> { self.surfaces.keys().cloned().collect() }
+
     /// remove a window from the manager
     /// 
     /// If you don't call this method after closing a window, the OpenGL
@@ -359,8 +362,62 @@ impl CandlManager {
     /// check for the asked window to see if it's the current one, and if not
     /// the method try to swap the OpenGL contexts to make the asked window
     /// current, and make the old current context not current.
-    pub fn get_current() {
-        //
-        //
+    pub fn get_current(&mut self, id: WindowId)
+    -> Result<&mut CandlSurface, ContextError> {
+        let res = if Some(id) != self.current {
+            let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
+            let mut ncurr_surface = Takeable::take(ncurr_ref);
+            match ncurr_surface.ctx {
+                CandlCurrentWrapper::PossiblyCurrent(_) => {
+                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    Ok(())
+                }
+                CandlCurrentWrapper::NotCurrent(nctx) => unsafe {
+                    //
+                    //
+                    Ok(())
+                    //
+                }
+            }
+        }
+        else {
+            let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
+            let ncurr_surface = Takeable::take(ncurr_ref);
+            match &ncurr_surface.ctx {
+                CandlCurrentWrapper::PossiblyCurrent(_) => {
+                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    Ok(())
+                }
+                CandlCurrentWrapper::NotCurrent(_) => panic!()
+            }
+        };
+        match res {
+            Ok(()) => {
+                if Some(id) != self.current {
+                    //
+                    //
+                    //
+                }
+                Ok(self.surfaces.get_mut(&id).unwrap())
+            }
+            Err(err) => {
+                if let Some(old_id) = self.current.take() {
+                    let old_ref = self.surfaces.get_mut(&old_id).unwrap();
+                    let mut old_surface = Takeable::take(old_ref);
+                    if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx {
+                        unsafe {
+                            match octx.make_not_current() {
+                                Err((_, err2)) =>
+                                    panic!("make current and make not current panic: {}, {}", err, err2),
+                                Ok(octx) =>
+                                    old_surface.ctx = CandlCurrentWrapper::NotCurrent(octx)
+                            }
+                        }
+                    }
+                    *old_ref = Takeable::new(old_surface);
+                }
+                Err(err)
+            }
+        }
     }
 }

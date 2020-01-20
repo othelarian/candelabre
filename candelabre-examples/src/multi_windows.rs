@@ -13,7 +13,7 @@ use utils::{FS, VS};
 fn main() {
     let el = EventLoop::new();
     //
-    //let mut win_manager = CandlManager::new();
+    let mut win_manager = CandlManager::new();
     //
     /*
     let surface = CandlSurface::new(

@@ -27,9 +27,9 @@ fn open_multi_windows() -> Result<(), String> {
             CandlOptions::default()
         ).unwrap();
     }
-    let ids = win_manager.list_windowIds();
+    let ids = win_manager.list_window_ids();
     for idx in &ids {
-        win_manager.get_current(idx.clone());
+        win_manager.get_current(idx.clone()).unwrap();
     }
     for idx in &ids {
         win_manager.remove_window(idx.clone());

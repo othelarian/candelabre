@@ -15,6 +15,13 @@ fn main() {
     //
     let mut win_manager = CandlManager::new();
     //
+    win_manager.create_window(
+        &el,
+        CandlDimension::Classic(800, 400),
+        "test",
+        CandlOptions::default()
+    );
+    //
     /*
     let surface = CandlSurface::new(
         &el,

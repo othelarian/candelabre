@@ -25,6 +25,10 @@ the `CandlManager` make it easy to swap between OpenGL contexts.
 You can find a example of the `CandlManager` in the
 [candelabre examples](https://github.com/othelarian/candelabre/tree/master/candelabre-examples).
 
+NOTE: You can't create a window and add it to the manager after, because of
+some internal checks. You must choose if you're going multi or not, but don't
+panic, moving from one to another is quite easy, and if it's still too obscure,
+open an issue.
 
 ## TODOLIST
 

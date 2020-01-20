@@ -32,15 +32,17 @@ use glutin::{
 };
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
-use glutin::window::{Fullscreen, WindowBuilder};
+use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
 use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
 use std::rc::Rc;
+use takeable_option::Takeable;
 
 pub use glutin::{ContextError, CreationError};
 
@@ -70,7 +72,7 @@ impl fmt::Display for CandlError {
             CandlError::GraphicsStateError(ref e) =>
                 write!(f, "Luminance GraphicsState creation error: {}", e),
             CandlError::InternalError(e) =>
-                write!(f, "Candelabre internal rrror: {}", e)
+                write!(f, "Candelabre internal error: {}", e)
         }
     }
 }
@@ -224,7 +226,10 @@ impl CandlSurface {
         let gfx_state = if multi {
             GraphicsState::new().map_err(CandlError::GraphicsStateError)?
         } else {
-            unsafe { GraphicsState::new_multi_contexts().map_err(CandlError::GraphicsStateError)? }
+            unsafe {
+                GraphicsState::new_multi_contexts()
+                    .map_err(CandlError::GraphicsStateError)?
+            }
         };
         Ok(CandlSurface {
             ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
@@ -271,9 +276,91 @@ pub enum CandlCurrentWrapper {
     NotCurrent(WindowedContext<NotCurrent>)
 }
 
+/// The window manager
 ///
-///
+/// Second core element of this lib, the `CandlManager` is the tool to bring
+/// all your app's windows under its command. It's main purpose is to remove
+/// the burden of OpenGL contexts swapping, and a way to easily manage multiple
+/// windows in a application. Its usage is pretty simple:
+/// 
+/// 1. create it
+/// 2. insert new window in it
+/// 3. call `get_current()` to swap contexts and get the window you can work with
+/// 4. done
+/// 
+/// Check the
+/// [candelabre examples](https://github.com/othelarian/candelabre/tree/master/candelabre-examples)
+/// to see it in action.
+
 pub struct CandlManager {
-    //
-    //
+    current: Option<WindowId>,
+    surfaces: HashMap<WindowId, Takeable<CandlSurface>>
+}
+
+impl CandlManager {
+    /// constructor for the manager
+    pub fn new() -> Self { CandlManager { current: None, surfaces: HashMap::default() } }
+
+    /// create a new window, tracked by the manager
+    /// 
+    /// For internal reason, it isn't possible to add a `CandlSurface` manually
+    /// created to the manager, it's mandatory to use the `create_window()`
+    /// method instead.
+    pub fn create_window<T>(
+        &mut self,
+        el: &EventLoop<T>,
+        dim: CandlDimension,
+        title: &str,
+        options: CandlOptions
+    ) -> Result<WindowId, CandlError> {
+        let mut surface = CandlSurface::window_builder(el, dim, title, options, true)?;
+        match &surface.ctx() {
+            CandlCurrentWrapper::PossiblyCurrent(ctx) => {
+                let win_id = ctx.window().id();
+                if let Some(old_id) = self.current.take() {
+                    if let Some(old_surface) = self.surfaces.get_mut(&old_id) {
+                        let mut old_win = Takeable::take(old_surface);
+                        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = old_win.ctx {
+                            let nctx = unsafe { ctx.treat_as_not_current() };
+                            old_win.ctx = CandlCurrentWrapper::NotCurrent(nctx);
+                        }
+                        *old_surface = Takeable::new(old_win);
+                    }
+                }
+                self.surfaces.insert(win_id, Takeable::new(surface));
+                self.current = Some(win_id);
+                Ok(win_id)
+            }
+            CandlCurrentWrapper::NotCurrent(_) =>
+                Err(CandlError::InternalError(
+                    "Surface creation from manager generated a not current context"
+                ))
+        }
+    }
+
+    /// remove a window from the manager
+    /// 
+    /// If you don't call this method after closing a window, the OpenGL
+    /// context continue to exist, and can lead to memory leaks.
+    pub fn remove_window(&mut self, id: WindowId) {
+        if Some(id) == self.current { self.current.take(); }
+        self.surfaces.remove(&id);
+    }
+
+    /// check if there is still living windows, or if the manager is empty
+    ///
+    /// The purpose of this method is to check if the application can be close,
+    /// from an OpenGL perspective.
+    pub fn is_empty(&self) -> bool { self.surfaces.is_empty() }
+
+    /// get a mutable reference to the current surface
+    /// 
+    /// This method is the most important of the manager. At first, there is a
+    /// check for the asked window to see if it's the current one, and if not
+    /// the method try to swap the OpenGL contexts to make the asked window
+    /// current, and make the old current context not current.
+    pub fn get_current() {
+        //
+        //
+    }
 }

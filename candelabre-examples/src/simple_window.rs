@@ -57,7 +57,7 @@ fn main() {
                     }, ..
                 } => *ctrl_flow = ControlFlow::Exit,
                 _ => ()
-            },
+            }
             Event::RedrawRequested(_) => {
                 let back_buffer = surface.back_buffer().unwrap();
                 surface.pipeline_builder().pipeline(

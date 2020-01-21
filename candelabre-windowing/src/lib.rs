@@ -22,6 +22,21 @@
 //! what you display. With `CandlManager`, you have what you need to help you
 //! in this tedious task. It take the responsability to make the swap for you,
 //! and track each window you link to it.
+//! 
+//! # About data in `CandlSurface` and `CandlManager`
+//! 
+//! It's possible to add data into the `CandlSurface` and the `CandlManager`.
+//! The purpose of this data is to make this structures stateful, but there is
+//! some limitations. It's strongly discouraged to save OpenGL data, like the
+//! tess, the program, or the shader, in the data of the structures, this isn't
+//! the purpose of this data, and can lead to useless complexity due to the
+//! borrowing and onwership when it come to the render phase.
+//! 
+//! # Ideas of improvements
+//! 
+//! The first idea for improving this library is to encapsulate OpenGL data
+//! into the structures, maybe with a method to implement, or a closure. If
+//! you have an idea, feel free to open an issue!
 
 #![deny(missing_docs)]
 
@@ -264,10 +279,11 @@ impl<D> CandlSurface<D> {
         })
     }
 
-    /// get the data
-    /// 
-    /// This method return a mutable reference to the data hold by the surface
-    pub fn data(&mut self) -> &mut D { &mut self.data }
+    /// get the data as a immutable reference
+    pub fn data(&self) -> &D { &self.data }
+
+    /// get the data as a mutable reference
+    pub fn data_mut(&mut self) -> &mut D { &mut self.data }
 
     /// get the OpenGL context from the surface
     pub fn ctx(&mut self) -> &mut CandlCurrentWrapper { &mut self.ctx }
@@ -323,7 +339,6 @@ pub enum CandlCurrentWrapper {
 /// Check the
 /// [candelabre examples](https://github.com/othelarian/candelabre/tree/master/candelabre-examples)
 /// to see it in action.
-
 pub struct CandlManager<D, M> {
     current: Option<WindowId>,
     surfaces: HashMap<WindowId, Takeable<CandlSurface<D>>>,
@@ -509,6 +524,9 @@ impl<D, M> CandlManager<D, M> {
         }
     }
 
-    /// get the data from the manager
-    pub fn data(&mut self) -> &mut M { &mut self.data }
+    /// get the data from the manager as an immutable reference
+    pub fn data(&self) -> &M { &self.data }
+
+    /// get the data from the manager as a mutable reference
+    pub fn data_mut(&mut self) -> &mut M { &mut self.data }
 }

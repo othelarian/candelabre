@@ -20,6 +20,7 @@ path = "src/multi_windows.rs"
 candelabre-windowing = { path = "../candelabre-windowing" }
 glutin = {version = "0.22.0", default-features = false}
 luminance-derive = "0.5.2"
+rand = "0.5.5"
 
 [dependencies.luminance]
 #version = "0.38.0"

@@ -169,6 +169,72 @@ impl CandlOptions {
     pub fn samples(&self) -> Option<u32> { self.samples }
 }
 
+/// Surface builder
+/// 
+/// This builder help create a new `CandlSurface` in a more idiomatic way
+pub struct CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
+    dim: CandlDimension,
+    title: &'a str,
+    options: CandlOptions,
+    render_fn: Option<F>,
+    render_data: Option<R>,
+    state: Option<D>
+}
+
+impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
+    /// builder constructor
+    ///
+    /// By default, the builder set the window dimension to Classic(800, 400)
+    /// and with no name
+    pub fn new() -> Self {
+        CandlSurfaceBuilder {
+            dim: CandlDimension::Classic(800, 400),
+            title: "",
+            options: CandlOptions::default(),
+            render_fn: None,
+            render_data: None,
+            state: None
+        }
+    }
+
+    /// modify the starting dimension
+    pub fn dim(&mut self, dim: CandlDimension) { self.dim = dim; }
+
+    /// set a title ("" by default)
+    pub fn title(&mut self, title: &'a str) { self.title = title; }
+
+    /// modify the options
+    pub fn options(&mut self, options: CandlOptions) { self.options = options; }
+
+    /// set render closure
+    pub fn render_closure(&mut self) {
+        //
+        // TODO
+        //
+    }
+
+    /// set render data
+    /// 
+    /// This function have a second implicit purpose: set up the data type of
+    /// the render data the surface can use
+    pub fn render_data(&mut self) {
+        //
+        // TODO
+        //
+    }
+
+    /// change the initial state
+    pub fn state(&mut self, init_state: D) { self.state = Some(init_state); }
+
+    /// try to build the surface
+    pub fn build(mut self) -> Result<CandlSurface<F, R, D>, CandlError> {
+        //
+        //
+        Err(CandlError::InternalError("NOT IMPLEMENTED"))
+        //
+    }
+}
+
 /// The display surface
 ///
 /// The first core element of this crate, the CandlSurface is a window with an
@@ -182,17 +248,19 @@ impl CandlOptions {
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
-pub struct CandlSurface<D> {
+pub struct CandlSurface<F, R, D> where F: FnOnce() {
     ctx: CandlCurrentWrapper,
     gfx_state: Rc<RefCell<GraphicsState>>,
-    data: D
+    render_fn: F,
+    render_data: R,
+    state: D
 }
 
-unsafe impl<D> GraphicsContext for CandlSurface<D> {
+unsafe impl<F, R, D> GraphicsContext for CandlSurface<F, R, D> where F: FnOnce() {
     fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
 }
 
-impl CandlSurface<()> {
+impl<F, R> CandlSurface<F, R, ()> where F: FnOnce() {
     /// creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
@@ -200,13 +268,17 @@ impl CandlSurface<()> {
         title: &str,
         options: CandlOptions
     ) -> Result<Self, CandlError> {
-        CandlSurface::window_builder(el, dim, title, options, false, ())
+        //CandlSurface::window_builder(el, dim, title, options, false, ())
+        //
+        Err(CandlError::InternalError("NOT IMPLEMENTED"))
+        //
     }
 }
 
-impl<D> CandlSurface<D> {
+impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
+    /*
     /// constructor with data
-    /// 
+    ///
     /// This constructor can be used to associate a data type to the window.
     /// The data type must be specified.
     pub fn new_with_data<T>(
@@ -214,11 +286,13 @@ impl<D> CandlSurface<D> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        init_data: D
+        init_state: D
     ) -> Result<Self, CandlError> {
-        CandlSurface::window_builder(el, dim, title, options, false, init_data)
+        CandlSurface::window_builder(el, dim, title, options, false, init_state)
     }
+    */
 
+    /*
     /// internal builder for the window
     fn window_builder<T>(
         el: &EventLoop<T>,
@@ -226,7 +300,7 @@ impl<D> CandlSurface<D> {
         title: &str,
         options: CandlOptions,
         multi: bool,
-        init_data: D
+        init_state: D
     ) -> Result<Self, CandlError> {
         let win_builder = WindowBuilder::new().with_title(title);
         let win_builder = match dim {
@@ -275,9 +349,16 @@ impl<D> CandlSurface<D> {
         Ok(CandlSurface {
             ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
             gfx_state: Rc::new(RefCell::new(gfx_state)),
-            data: init_data
+            //
+            //
+            state: init_state
         })
     }
+    */
+
+
+    /*
+
 
     /// get the data as a immutable reference
     pub fn data(&self) -> &D { &self.data }
@@ -306,6 +387,10 @@ impl<D> CandlSurface<D> {
             ctx.swap_buffers().unwrap();
         }
     }
+
+
+
+    */
 }
 
 /// Tracking the context status
@@ -323,6 +408,17 @@ pub enum CandlCurrentWrapper {
     /// OpenGL context is not current
     NotCurrent(WindowedContext<NotCurrent>)
 }
+
+
+
+
+// ============================================================================
+
+
+
+
+/*
+
 
 /// The window manager
 ///
@@ -530,3 +626,7 @@ impl<D, M> CandlManager<D, M> {
     /// get the data from the manager as a mutable reference
     pub fn data_mut(&mut self) -> &mut M { &mut self.data }
 }
+
+
+*/
+

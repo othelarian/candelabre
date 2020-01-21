@@ -5,6 +5,14 @@ Hi dear reader, this crate is for you if you want to be able to use
 giving you a simple way to spawn one or multiple windows! For each window, an
 OpenGL context is waiting for your next luminous idea to suit it up.
 
+### Actively developped
+
+during the creation process of this library some ideas grow about what to do
+better. The current version is already stable, but there is one aspect I want
+to explore a little bit deeper. The future evolution will focus on the internal
+data capacity of the `CandlSurface` and `CandlManager`. You don't need this
+features to use the library, just keep in mind that I work on them.
+
 ## The CandlSurface
 
 The `CandlSurface` is the first core element in this crate. It allow the
@@ -29,8 +37,3 @@ NOTE: You can't create a window and add it to the manager after, because of
 some internal checks. You must choose if you're going multi or not, but don't
 panic, moving from one to another is quite easy, and if it's still too obscure,
 open an issue.
-
-## TODOLIST
-
-* integration tests
-* quickstart example

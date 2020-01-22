@@ -219,7 +219,7 @@ impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce(), D: Default
     pub fn state(&mut self, init_state: D) { self.state = Some(init_state); }
 
     /// try to build the surface
-    pub fn build<T>(mut self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
+    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
         match self.render_fn {
             None =>
                 Err(CandlError::InternalError("You must specify a closure to handle graphic pipeline")),
@@ -380,18 +380,24 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         })
     }
 
-    //
-    //
-    //
-    // TODO
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
+    /// change the title of the window
+    pub fn title(&mut self, new_title: &str) {
+        match &self.ctx {
+            CandlCurrentWrapper::PossiblyCurrent(ctx) =>
+                ctx.window().set_title(new_title),
+            CandlCurrentWrapper::NotCurrent(ctx) =>
+                ctx.window().set_title(new_title)
+        };
+    }
+
+    /// get the render data (immutable way)
+    pub fn rdr_data(&self) -> &R { &self.render_data }
+
+    /// get the render data with possibility to modify them
+    pub fn rdr_data_mut(&mut self) -> &mut R { &mut self.render_data }
+
+    /// change the render closure
+    pub fn render_closure(&mut self, render_fn: F) { self.render_fn = render_fn; }
 
     /// get the data as a immutable reference
     pub fn state(&self) -> &D { &self.state }
@@ -443,8 +449,15 @@ pub enum CandlCurrentWrapper {
 
 // ============================================================================
 
+struct CandlManagerBuilder {
+    //
+    //
+}
 
-
+impl CandlManagerBuilder {
+    //
+    //
+}
 
 /*
 

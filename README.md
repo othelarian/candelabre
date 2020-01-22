@@ -1,5 +1,7 @@
 # candelabre
 
+# <span style='color:red;font-weight:bold'>WARNING: master currently broken</span>
+
 Welcome dear reader!
 
 Candelabre project is a attempt to use OpenGL with the help of

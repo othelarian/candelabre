@@ -50,6 +50,7 @@ use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
+use luminance::pipeline::{Pipeline, PipelineState, ShadingGate};
 use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
@@ -172,7 +173,7 @@ impl CandlOptions {
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, F, R, D = ()> where F: FnOnce() {
+pub struct CandlSurfaceBuilder<'a, F, R, D = ()> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
@@ -181,7 +182,12 @@ pub struct CandlSurfaceBuilder<'a, F, R, D = ()> where F: FnOnce() {
     state: Option<D>
 }
 
-impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce(), D: Default {
+impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
+    where
+        //F: Fn(Pipeline<'b>, ShadingGate<'b, GraphicsContext>),
+        D: Default,
+        //C: GraphicsContext
+{
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -198,25 +204,31 @@ impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce(), D: Default
     }
 
     /// modify the starting dimension
-    pub fn dim(&mut self, dim: CandlDimension) { self.dim = dim; }
+    pub fn dim(self, dim: CandlDimension) -> Self { Self {dim, ..self} }
 
     /// set a title ("" by default)
-    pub fn title(&mut self, title: &'a str) { self.title = title; }
+    pub fn title(self, title: &'a str) -> Self { Self {title, ..self} }
 
     /// modify the options
-    pub fn options(&mut self, options: CandlOptions) { self.options = options; }
+    pub fn options(self, options: CandlOptions) -> Self { Self {options, ..self} }
 
     /// set render closure
-    pub fn render_closure(&mut self, render_fn: F) { self.render_fn = Some(render_fn); }
+    pub fn render_closure(self, render_fn: F) -> Self {
+        Self {render_fn: Some(render_fn), ..self}
+    }
 
     /// set render data
     /// 
     /// This function have a second implicit purpose: set up the data type of
     /// the render data the surface can use
-    pub fn render_data(&mut self, render_data: R) { self.render_data = Some(render_data); }
+    pub fn render_data(self, render_data: R) -> Self {
+        Self {render_data: Some(render_data), ..self}
+    }
 
     /// change the initial state
-    pub fn state(&mut self, init_state: D) { self.state = Some(init_state); }
+    pub fn state(self, init_state: D) -> Self {
+        Self {state: Some(init_state), ..self}
+    }
 
     /// try to build the surface
     pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
@@ -397,7 +409,17 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
     pub fn rdr_data_mut(&mut self) -> &mut R { &mut self.render_data }
 
     /// change the render closure
-    pub fn render_closure(&mut self, render_fn: F) { self.render_fn = render_fn; }
+    pub fn set_render_closure(&mut self, render_fn: F) { self.render_fn = render_fn; }
+
+    /// get the render closure
+    pub fn render_closure(&self) -> &F {
+        //
+        // TODO
+        //
+        &self.render_fn
+        //
+        //
+    }
 
     /// get the data as a immutable reference
     pub fn state(&self) -> &D { &self.state }
@@ -425,6 +447,28 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx {
             ctx.swap_buffers().unwrap();
         }
+    }
+
+    /// draw on the surface
+    pub fn draw(&mut self) {
+        //
+        //(self.render_fn)();
+        //
+        let back_buffer = self.back_buffer().unwrap();
+        let rdr_data = self.rdr_data();
+        //
+        self.pipeline_builder().pipeline(
+            &back_buffer,
+            //
+            // TODO : integrate the pipelineState inside the surface
+            //
+            &PipelineState::default(),
+            //
+            |_, _| ()
+            //
+        );
+        //
+        self.swap_buffers();
     }
 }
 

@@ -7,4 +7,4 @@ members = [
 ]
 
 [patch.crates-io]
-candelabre-windowing = { path = "./candelabre-windowing" }
+#candelabre-windowing = { path = "./candelabre-windowing" }

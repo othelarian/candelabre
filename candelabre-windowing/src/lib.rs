@@ -172,7 +172,7 @@ impl CandlOptions {
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
+pub struct CandlSurfaceBuilder<'a, F, R, D = ()> where F: FnOnce() {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
@@ -181,7 +181,7 @@ pub struct CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
     state: Option<D>
 }
 
-impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
+impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce(), D: Default {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -207,31 +207,38 @@ impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
     pub fn options(&mut self, options: CandlOptions) { self.options = options; }
 
     /// set render closure
-    pub fn render_closure(&mut self) {
-        //
-        // TODO
-        //
-    }
+    pub fn render_closure(&mut self, render_fn: F) { self.render_fn = Some(render_fn); }
 
     /// set render data
     /// 
     /// This function have a second implicit purpose: set up the data type of
     /// the render data the surface can use
-    pub fn render_data(&mut self) {
-        //
-        // TODO
-        //
-    }
+    pub fn render_data(&mut self, render_data: R) { self.render_data = Some(render_data); }
 
     /// change the initial state
     pub fn state(&mut self, init_state: D) { self.state = Some(init_state); }
 
     /// try to build the surface
-    pub fn build(mut self) -> Result<CandlSurface<F, R, D>, CandlError> {
-        //
-        //
-        Err(CandlError::InternalError("NOT IMPLEMENTED"))
-        //
+    pub fn build<T>(mut self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
+        match self.render_fn {
+            None =>
+                Err(CandlError::InternalError("You must specify a closure to handle graphic pipeline")),
+            Some(render_fn) => match self.render_data {
+                None =>
+                    Err(CandlError::InternalError("You must specify some data structure for the render closure")),
+                Some(render_data) =>
+                    CandlSurface::window_builder(
+                        el,
+                        self.dim,
+                        self.title,
+                        self.options,
+                        false,
+                        render_fn,
+                        render_data,
+                        self.state.unwrap_or_default()
+                    )
+            }
+        }
     }
 }
 
@@ -248,7 +255,7 @@ impl<'a, F, R, D> CandlSurfaceBuilder<'a, F, R, D> where F: FnOnce() {
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
-pub struct CandlSurface<F, R, D> where F: FnOnce() {
+pub struct CandlSurface<F, R, D = ()> where F: FnOnce() {
     ctx: CandlCurrentWrapper,
     gfx_state: Rc<RefCell<GraphicsState>>,
     render_fn: F,
@@ -266,17 +273,24 @@ impl<F, R> CandlSurface<F, R, ()> where F: FnOnce() {
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
-        options: CandlOptions
+        options: CandlOptions,
+        render_fn: F,
+        render_data: R
     ) -> Result<Self, CandlError> {
-        //CandlSurface::window_builder(el, dim, title, options, false, ())
-        //
-        Err(CandlError::InternalError("NOT IMPLEMENTED"))
-        //
+        CandlSurface::window_builder(
+            el,
+            dim,
+            title,
+            options,
+            false,
+            render_fn,
+            render_data,
+            ()
+        )
     }
 }
 
 impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
-    /*
     /// constructor with data
     ///
     /// This constructor can be used to associate a data type to the window.
@@ -286,13 +300,22 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
+        render_fn: F,
+        render_data: R,
         init_state: D
     ) -> Result<Self, CandlError> {
-        CandlSurface::window_builder(el, dim, title, options, false, init_state)
+        CandlSurface::window_builder(
+            el,
+            dim,
+            title,
+            options,
+            false,
+            render_fn,
+            render_data,
+            init_state
+        )
     }
-    */
 
-    /*
     /// internal builder for the window
     fn window_builder<T>(
         el: &EventLoop<T>,
@@ -300,6 +323,8 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         title: &str,
         options: CandlOptions,
         multi: bool,
+        render_fn: F,
+        render_data: R,
         init_state: D
     ) -> Result<Self, CandlError> {
         let win_builder = WindowBuilder::new().with_title(title);
@@ -349,22 +374,30 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         Ok(CandlSurface {
             ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
             gfx_state: Rc::new(RefCell::new(gfx_state)),
-            //
-            //
+            render_fn: render_fn,
+            render_data: render_data,
             state: init_state
         })
     }
-    */
 
-
-    /*
-
+    //
+    //
+    //
+    // TODO
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
 
     /// get the data as a immutable reference
-    pub fn data(&self) -> &D { &self.data }
+    pub fn state(&self) -> &D { &self.state }
 
     /// get the data as a mutable reference
-    pub fn data_mut(&mut self) -> &mut D { &mut self.data }
+    pub fn state_mut(&mut self) -> &mut D { &mut self.state }
 
     /// get the OpenGL context from the surface
     pub fn ctx(&mut self) -> &mut CandlCurrentWrapper { &mut self.ctx }
@@ -387,10 +420,6 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
             ctx.swap_buffers().unwrap();
         }
     }
-
-
-
-    */
 }
 
 /// Tracking the context status

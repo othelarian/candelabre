@@ -9,12 +9,16 @@ documentation = ""
 readme = "README.md"
 
 [[bin]]
-name = "simple_window"
-path = "src/simple_window.rs"
+name = "test_fulli"
+path = "src/test_fulli.rs"
 
-[[bin]]
-name = "multi_windows"
-path = "src/multi_windows.rs"
+#[[bin]]
+#name = "simple_window"
+#path = "src/simple_window.rs"
+
+#[[bin]]
+#name = "multi_windows"
+#path = "src/multi_windows.rs"
 
 [dependencies]
 candelabre-windowing = { path = "../candelabre-windowing" }

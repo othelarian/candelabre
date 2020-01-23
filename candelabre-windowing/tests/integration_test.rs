@@ -1,6 +1,8 @@
 use glutin::event_loop::EventLoop;
 use candelabre_windowing::*;
 
+/*
+
 #[test]
 fn use_surface_builder() -> Result<(), String> {
     let el = EventLoop::new();
@@ -49,6 +51,8 @@ fn create_window_with_data() -> Result<(), String> {
         Err(e) => Err(String::from(format!("{}", e)))
     }
 }
+
+*/
 
 
 

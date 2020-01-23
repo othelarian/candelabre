@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 gl = "0.14.0"
-glutin = {version = "0.22.0", default-features = false}
+#glutin = {version = "0.22.0", default-features = false}
+glutin = "0.22.0"
 takeable-option = "0.5.0"
 
 [dependencies.luminance]

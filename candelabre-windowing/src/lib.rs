@@ -182,9 +182,11 @@ pub struct CandlSurfaceBuilder<'a, F, R, D = ()> {
     state: Option<D>
 }
 
+/*
+
 impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
     where
-        //F: Fn(Pipeline<'b>, ShadingGate<'b, GraphicsContext>),
+        //F: Fn(Pipeline<'b>, ShadingGate<'b, C>),
         D: Default,
         //C: GraphicsContext
 {
@@ -230,6 +232,13 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
         Self {state: Some(init_state), ..self}
     }
 
+    /*
+
+    //
+    // TODO : get into the build issue
+    //
+    //
+
     /// try to build the surface
     pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
         match self.render_fn {
@@ -252,7 +261,10 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
             }
         }
     }
+    */
 }
+
+*/
 
 /// The display surface
 ///
@@ -267,19 +279,31 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
-pub struct CandlSurface<F, R, D = ()> where F: FnOnce() {
+pub struct CandlSurface<F, R, D = ()>
+    /*where
+        //
+        //C: ?Sized,
+        F: Fn(PipelineState, ShadingGate<C>)
+        */
+{
     ctx: CandlCurrentWrapper,
-    gfx_state: Rc<RefCell<GraphicsState>>,
+    //gfx_state: Rc<RefCell<GraphicsState>>,
     render_fn: F,
     render_data: R,
     state: D
 }
 
-unsafe impl<F, R, D> GraphicsContext for CandlSurface<F, R, D> where F: FnOnce() {
+/*
+unsafe impl<F, R, D> GraphicsContext for CandlSurface<F, R, D>
+    //where F: Fn(Pipeline, ShadingGate<C>)
+{
     fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
 }
+*/
 
-impl<F, R> CandlSurface<F, R, ()> where F: FnOnce() {
+impl<F, R> CandlSurface<F, R, ()>
+    //where F: Fn(Pipeline, ShadingGate<C>)
+{
     /// creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
@@ -302,7 +326,9 @@ impl<F, R> CandlSurface<F, R, ()> where F: FnOnce() {
     }
 }
 
-impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
+impl<F, R, D> CandlSurface<F, R, D>
+    //where F: Fn()
+{
     /// constructor with data
     ///
     /// This constructor can be used to associate a data type to the window.
@@ -375,6 +401,10 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
             CursorMode::Invisible => false
         });
         gl::load_with(|s| ctx.get_proc_address(s) as *const c_void);
+        //
+        //
+        //
+        /*
         let gfx_state = if multi {
             GraphicsState::new().map_err(CandlError::GraphicsStateError)?
         } else {
@@ -383,9 +413,12 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
                     .map_err(CandlError::GraphicsStateError)?
             }
         };
+        */
+        //
+        //
         Ok(CandlSurface {
             ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
-            gfx_state: Rc::new(RefCell::new(gfx_state)),
+            //gfx_state: Rc::new(RefCell::new(gfx_state)),
             render_fn: render_fn,
             render_data: render_data,
             state: init_state
@@ -430,6 +463,7 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
     /// get the OpenGL context from the surface
     pub fn ctx(&mut self) -> &mut CandlCurrentWrapper { &mut self.ctx }
 
+    /*
     /// get the back buffer of the surface
     pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, CandlError> {
         match &self.ctx {
@@ -441,6 +475,7 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
                 Err(CandlError::InternalError("using back buffer of not current OpenGL context"))
         }
     }
+    */
 
     /// swap the OpenGL back buffer and current buffer
     pub fn swap_buffers(&mut self) {
@@ -454,9 +489,10 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
         //
         //(self.render_fn)();
         //
-        let back_buffer = self.back_buffer().unwrap();
-        let rdr_data = self.rdr_data();
+        //let back_buffer = self.back_buffer().unwrap();
+        //let rdr_data = self.rdr_data();
         //
+        /*
         self.pipeline_builder().pipeline(
             &back_buffer,
             //
@@ -464,9 +500,10 @@ impl<F, R, D> CandlSurface<F, R, D> where F: FnOnce() {
             //
             &PipelineState::default(),
             //
-            |_, _| ()
+            c
             //
         );
+        */
         //
         self.swap_buffers();
     }

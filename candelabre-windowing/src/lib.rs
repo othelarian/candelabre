@@ -372,7 +372,19 @@ impl<D> CandlSurface<D> {
     /// get the OpenGL context from the surface
     pub fn ctx(&mut self) -> &mut CandlCurrentWrapper { &mut self.ctx }
 
+    /// requesting redraw for the window
+    pub fn request_redraw(&mut self) {
+        match &self.ctx {
+            CandlCurrentWrapper::PossiblyCurrent(ctx) =>
+                ctx.window().request_redraw(),
+            CandlCurrentWrapper::NotCurrent(_) => ()
+        }
+    }
+
     /*
+    //
+    // TODO : do something with this
+    //
     /// get the back buffer of the surface
     pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, CandlError> {
         match &self.ctx {
@@ -416,7 +428,7 @@ impl<D> CandlSurface<D> {
         );
         */
         //
-        //self.swap_buffers();
+        self.swap_buffers();
     }
 }
 

@@ -95,11 +95,15 @@ fn main() {
                 _ => ()
             }
             Event::MainEventsCleared => {
-                //
-                // TODO : mark the window who need a redraw
-                //
+                if surface.state().need_redraw() {
+                    surface.request_redraw();
+                    surface.state_mut().draw_asked();
+                }
             }
             Event::RedrawRequested(_) => {
+                //
+                surface.draw();
+                //
                 /*
                 let back_buffer = surface.back_buffer().unwrap();
                 surface.pipeline_builder().pipeline(

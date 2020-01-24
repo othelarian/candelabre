@@ -1,4 +1,13 @@
-//! ???
+//! # Welcome!
+//! 
+//! This crate serve as a base layer for candelabre windowing and widgets
+//! crates, and provide them some useful tools to interact in a safer way with
+//! OpenGL context.
+//! 
+//! # `CandlGraphics`
+//! 
+//! This is currently the core element of this crate, and provide to a
+//! `CandlSurface` the basic to interact with OpenGL.
 
 #[deny(missing_docs)]
 
@@ -24,7 +33,7 @@ impl CandlGraphics {
         }
     }
 
-    /// draw in the framebuffer
+    /// draw in the back buffer
     pub fn draw_frame(&self) {
         //
         //
@@ -34,9 +43,9 @@ impl CandlGraphics {
 
 
     /// apply the clear color
-    unsafe fn apply_clear_color(&mut self, new_color: [f32; 4]) {
+    pub fn apply_clear_color(&mut self, new_color: [f32; 4]) {
         if self.clear_color != new_color {
-            gl::ClearColor(new_color[0], new_color[1], new_color[2], new_color[3]);
+            unsafe { gl::ClearColor(new_color[0], new_color[1], new_color[2], new_color[3]); }
         }
         self.clear_color = new_color;
     }

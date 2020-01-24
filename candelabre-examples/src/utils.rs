@@ -29,9 +29,20 @@ pub const OGL_TRIANGLE: [Vertex; 3] = [
 
 pub struct SurfaceState {
     redraw: bool,
-    bgcol: [f32; 4]
+    //bgcol: [f32; 4]
 }
 
 impl Default for SurfaceState {
-    fn default() -> Self { Self {redraw: false, bgcol: [0.0, 0.0, 0.0, 1.0]} }
+    fn default() -> Self {
+        Self {
+            redraw: false,
+            //bgcol: [0.0, 0.0, 0.0, 1.0]
+        }
+    }
+}
+
+impl SurfaceState {
+    pub fn ask_draw(&mut self) { self.redraw = true; }
+    pub fn need_redraw(&self) -> bool { self.redraw }
+    pub fn draw_asked(&mut self) { self.redraw = false; }
 }

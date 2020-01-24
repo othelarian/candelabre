@@ -59,11 +59,9 @@ use glutin::{
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
-use std::rc::Rc;
 use takeable_option::Takeable;
 
 pub use glutin::{ContextError, CreationError};
@@ -438,21 +436,6 @@ pub enum CandlCurrentWrapper {
     NotCurrent(WindowedContext<NotCurrent>)
 }
 
-
-
-
-// ============================================================================
-
-struct CandlManagerBuilder {
-    //
-    //
-}
-
-impl CandlManagerBuilder {
-    //
-    //
-}
-
 /// The window manager
 ///
 /// Second core element of this lib, the `CandlManager` is the tool to bring
@@ -507,7 +490,7 @@ impl<M> CandlManager<(), M> {
     }
 }
 
-impl<D, M> CandlManager<D, M> {
+impl<D, M> CandlManager<D, M> where D: Default {
     /// constructor for the manager with data type link to it
     pub fn new_with_data(init_data: M) -> Self {
         CandlManager {
@@ -518,10 +501,13 @@ impl<D, M> CandlManager<D, M> {
     }
 
     /// create a new window from a CandlSurfaceBuilder
-    pub fn create_window_from_builder(&mut self, builder: CandlSurfaceBuilder) {
-        //
-        // TODO
-        //
+    pub fn create_window_from_builder<T>(
+        &mut self,
+        builder: CandlSurfaceBuilder<D>,
+        el: &EventLoop<T>
+    ) -> Result<WindowId, CandlError> {
+        let surface = builder.build(el).unwrap();
+        self.add_widow(surface)
     }
 
     /// create a new window with surface associated data type
@@ -534,7 +520,12 @@ impl<D, M> CandlManager<D, M> {
         render: CandlGraphics,
         init_data: D
     ) -> Result<WindowId, CandlError> {
-        let mut surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
+        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
+        self.add_widow(surface)
+    }
+
+    /// internal method to truly add the new window
+    fn add_widow(&mut self, mut surface: CandlSurface<D>) -> Result<WindowId, CandlError> {
         match &surface.ctx() {
             CandlCurrentWrapper::PossiblyCurrent(ctx) => {
                 let win_id = ctx.window().id();

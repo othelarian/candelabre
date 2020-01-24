@@ -48,10 +48,6 @@ fn create_window_with_data() -> Result<(), String> {
     }
 }
 
-
-
-/*
-
 #[test]
 fn open_multi_windows() -> Result<(), String> {
     let el = EventLoop::new();
@@ -61,7 +57,8 @@ fn open_multi_windows() -> Result<(), String> {
             &el,
             CandlDimension::Classic(800, 400),
             &format!("test candelabre multi window: #{}", win_idx+1),
-            CandlOptions::default()
+            CandlOptions::default(),
+            CandlGraphics::new()
         ).unwrap();
     }
     let ids = win_manager.list_window_ids();
@@ -74,5 +71,3 @@ fn open_multi_windows() -> Result<(), String> {
     if win_manager.is_empty() { Ok(()) }
     else { Err(String::from("Test failed: CandlManager not empty!")) }
 }
-
-*/

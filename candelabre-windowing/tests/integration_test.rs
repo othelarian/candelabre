@@ -1,7 +1,6 @@
-use glutin::event_loop::EventLoop;
+use candelabre_core::CandlGraphics;
 use candelabre_windowing::*;
-
-/*
+use glutin::event_loop::EventLoop;
 
 #[test]
 fn use_surface_builder() -> Result<(), String> {
@@ -10,8 +9,7 @@ fn use_surface_builder() -> Result<(), String> {
         .dim(CandlDimension::FullscreenSpecific(900, 700))
         .title("This is a test")
         .options(CandlOptions::default().set_cursor_mode(CursorMode::Invisible))
-        .render_closure(|| ())
-        .render_data(())
+        .render(CandlGraphics::new())
         .state(());
     match builder.build(&el) {
         Ok(_) => Ok(()),
@@ -27,8 +25,7 @@ fn create_window() -> Result<(), String> {
         CandlDimension::Classic(800, 400),
         "test candelabre window",
         CandlOptions::default(),
-        || (),
-        ()
+        CandlGraphics::new()
     ) {
         Ok(_) => Ok(()),
         Err(e) => Err(String::from(format!("{}", e)))
@@ -43,16 +40,13 @@ fn create_window_with_data() -> Result<(), String> {
         CandlDimension::Fullscreen,
         &String::from("test window with data"),
         CandlOptions::default(),
-        || (),
-        (),
+        CandlGraphics::new(),
         42
     ) {
         Ok(_) => Ok(()),
         Err(e) => Err(String::from(format!("{}", e)))
     }
 }
-
-*/
 
 
 

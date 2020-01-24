@@ -1,20 +1,35 @@
 //! # Welcome!
 //!
+//! The purpose of this crate is to provide a way to easily handle windows,
+//! just one or a multitude of them. After creating the window, it's simple to
+//! use the candelabre-core and candelabre-widget to quickly construct a
+//! beautiful GUI.
+//! 
+//! # A bit of history
+//! 
+//! At the beginning, this crate was designed to use glutin v0.22 with
+//! [luminance](https://github.com/phaazon/luminance-rs/), but due to some
+//! foolish idea from the developper, the initial goal slide a bit. Now the
+//! purpose of candelabre-windowing is mostly to support candelabre-widget, but
+//! you can still use it solely with `gl`, `rgl`, or any lib who play with
+//! OpenGL.
+//! 
+//! # What's inside this crate?
+//! 
 //! This crate provide a two elements:
 //!
-//! * `CandlSurface`, a window type who generate a surface for
-//! [luminance](https://github.com/phaazon/luminance-rs/)
+//! * `CandlSurface`, a window type who generate a surface for using OpenGL
 //! * `CandlManager`, a window manager to enable using multiple windows in a
 //! single application / thread
 //!
-//! # CandlSurface
+//! ## CandlSurface
 //! 
 //! Core of this lib, it's a simple way to get an OpenGL context and then use
 //! luminance [luminance](https://github.com/phaazon/luminance-rs/). Initially
 //! it's a copy of luminance-glutin lib, modified to be able to work with the
 //! CandlManager.
 //! 
-//! # CandlManager
+//! ## CandlManager
 //! 
 //! When dealing with multiple windows in a single application, it quickly
 //! become complex and error prone. You can only use one OpenGL context at a
@@ -23,7 +38,7 @@
 //! in this tedious task. It take the responsability to make the swap for you,
 //! and track each window you link to it.
 //! 
-//! # About data in `CandlSurface` and `CandlManager`
+//! ## About data in `CandlSurface` and `CandlManager`
 //! 
 //! It's possible to add data into the `CandlSurface` and the `CandlManager`.
 //! The purpose of this data is to make this structures stateful, but there is
@@ -32,14 +47,10 @@
 //! the purpose of this data, and can lead to useless complexity due to the
 //! borrowing and onwership when it come to the render phase.
 //! 
-//! # Ideas of improvements
-//! 
-//! The first idea for improving this library is to encapsulate OpenGL data
-//! into the structures, maybe with a method to implement, or a closure. If
-//! you have an idea, feel free to open an issue!
 
 #![deny(missing_docs)]
 
+use candelabre_core::CandlGraphics;
 use gl;
 use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
@@ -48,11 +59,6 @@ use glutin::{
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
-use luminance::context::GraphicsContext;
-use luminance::framebuffer::Framebuffer;
-use luminance::pipeline::{Pipeline, PipelineState, ShadingGate};
-use luminance::state::{GraphicsState, StateQueryError};
-use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
@@ -72,8 +78,6 @@ pub enum CandlError {
     CreationError(CreationError),
     /// OpenGL context usage error
     ContextError(ContextError),
-    /// luminance gfx state creation error
-    GraphicsStateError(StateQueryError),
     /// Candelabre internal error
     InternalError(&'static str)
 }
@@ -85,8 +89,6 @@ impl fmt::Display for CandlError {
                 write!(f, "Candelabre Surface creation error: {}", e),
             CandlError::ContextError(ref e) =>
                 write!(f, "OpenGL context usage error: {}", e),
-            CandlError::GraphicsStateError(ref e) =>
-                write!(f, "Luminance GraphicsState creation error: {}", e),
             CandlError::InternalError(e) =>
                 write!(f, "Candelabre internal error: {}", e)
         }
@@ -173,23 +175,15 @@ impl CandlOptions {
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, F, R, D = ()> {
+pub struct CandlSurfaceBuilder<'a, D = ()> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
-    render_fn: Option<F>,
-    render_data: Option<R>,
+    render: Option<CandlGraphics>,
     state: Option<D>
 }
 
-/*
-
-impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
-    where
-        //F: Fn(Pipeline<'b>, ShadingGate<'b, C>),
-        D: Default,
-        //C: GraphicsContext
-{
+impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> where D: Default {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -199,8 +193,7 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
             dim: CandlDimension::Classic(800, 400),
             title: "",
             options: CandlOptions::default(),
-            render_fn: None,
-            render_data: None,
+            render: None,
             state: None
         }
     }
@@ -214,17 +207,9 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
     /// modify the options
     pub fn options(self, options: CandlOptions) -> Self { Self {options, ..self} }
 
-    /// set render closure
-    pub fn render_closure(self, render_fn: F) -> Self {
-        Self {render_fn: Some(render_fn), ..self}
-    }
-
-    /// set render data
-    /// 
-    /// This function have a second implicit purpose: set up the data type of
-    /// the render data the surface can use
-    pub fn render_data(self, render_data: R) -> Self {
-        Self {render_data: Some(render_data), ..self}
+    /// set render object
+    pub fn render(self, render: CandlGraphics) -> Self {
+        Self {render: Some(render), ..self}
     }
 
     /// change the initial state
@@ -232,39 +217,23 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
         Self {state: Some(init_state), ..self}
     }
 
-    /*
-
-    //
-    // TODO : get into the build issue
-    //
-    //
-
     /// try to build the surface
-    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<F, R, D>, CandlError> {
-        match self.render_fn {
+    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<D>, CandlError> {
+        match self.render {
             None =>
-                Err(CandlError::InternalError("You must specify a closure to handle graphic pipeline")),
-            Some(render_fn) => match self.render_data {
-                None =>
-                    Err(CandlError::InternalError("You must specify some data structure for the render closure")),
-                Some(render_data) =>
-                    CandlSurface::window_builder(
-                        el,
-                        self.dim,
-                        self.title,
-                        self.options,
-                        false,
-                        render_fn,
-                        render_data,
-                        self.state.unwrap_or_default()
-                    )
-            }
+                Err(CandlError::InternalError("You must specify the CandlGraphics!")),
+            Some(render) =>
+                CandlSurface::window_builder(
+                    el,
+                    self.dim,
+                    self.title,
+                    self.options,
+                    render,
+                    self.state.unwrap_or_default()
+                )
         }
     }
-    */
 }
-
-*/
 
 /// The display surface
 ///
@@ -279,56 +248,33 @@ impl<'a, 'b, F, R, D> CandlSurfaceBuilder<'a, F, R, D>
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
-pub struct CandlSurface<F, R, D = ()>
-    /*where
-        //
-        //C: ?Sized,
-        F: Fn(PipelineState, ShadingGate<C>)
-        */
-{
+pub struct CandlSurface<D = ()> {
     ctx: CandlCurrentWrapper,
-    //gfx_state: Rc<RefCell<GraphicsState>>,
-    render_fn: F,
-    render_data: R,
+    render: CandlGraphics,
     state: D
 }
 
-/*
-unsafe impl<F, R, D> GraphicsContext for CandlSurface<F, R, D>
-    //where F: Fn(Pipeline, ShadingGate<C>)
-{
-    fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
-}
-*/
-
-impl<F, R> CandlSurface<F, R, ()>
-    //where F: Fn(Pipeline, ShadingGate<C>)
-{
+impl CandlSurface<()> {
     /// creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render_fn: F,
-        render_data: R
+        render: CandlGraphics
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
             el,
             dim,
             title,
             options,
-            false,
-            render_fn,
-            render_data,
+            render,
             ()
         )
     }
 }
 
-impl<F, R, D> CandlSurface<F, R, D>
-    //where F: Fn()
-{
+impl<D> CandlSurface<D> {
     /// constructor with data
     ///
     /// This constructor can be used to associate a data type to the window.
@@ -338,8 +284,7 @@ impl<F, R, D> CandlSurface<F, R, D>
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render_fn: F,
-        render_data: R,
+        render: CandlGraphics,
         init_state: D
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
@@ -347,9 +292,7 @@ impl<F, R, D> CandlSurface<F, R, D>
             dim,
             title,
             options,
-            false,
-            render_fn,
-            render_data,
+            render,
             init_state
         )
     }
@@ -360,9 +303,7 @@ impl<F, R, D> CandlSurface<F, R, D>
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        multi: bool,
-        render_fn: F,
-        render_data: R,
+        render: CandlGraphics,
         init_state: D
     ) -> Result<Self, CandlError> {
         let win_builder = WindowBuilder::new().with_title(title);
@@ -401,26 +342,9 @@ impl<F, R, D> CandlSurface<F, R, D>
             CursorMode::Invisible => false
         });
         gl::load_with(|s| ctx.get_proc_address(s) as *const c_void);
-        //
-        //
-        //
-        /*
-        let gfx_state = if multi {
-            GraphicsState::new().map_err(CandlError::GraphicsStateError)?
-        } else {
-            unsafe {
-                GraphicsState::new_multi_contexts()
-                    .map_err(CandlError::GraphicsStateError)?
-            }
-        };
-        */
-        //
-        //
         Ok(CandlSurface {
             ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
-            //gfx_state: Rc::new(RefCell::new(gfx_state)),
-            render_fn: render_fn,
-            render_data: render_data,
+            render,
             state: init_state
         })
     }
@@ -435,24 +359,11 @@ impl<F, R, D> CandlSurface<F, R, D>
         };
     }
 
-    /// get the render data (immutable way)
-    pub fn rdr_data(&self) -> &R { &self.render_data }
+    /// get the render object (immutable way)
+    pub fn render(&self) -> &CandlGraphics { &self.render }
 
-    /// get the render data with possibility to modify them
-    pub fn rdr_data_mut(&mut self) -> &mut R { &mut self.render_data }
-
-    /// change the render closure
-    pub fn set_render_closure(&mut self, render_fn: F) { self.render_fn = render_fn; }
-
-    /// get the render closure
-    pub fn render_closure(&self) -> &F {
-        //
-        // TODO
-        //
-        &self.render_fn
-        //
-        //
-    }
+    /// get the render object (mutable way)
+    pub fn render_mut(&mut self) -> &mut CandlGraphics { &mut self.render }
 
     /// get the data as a immutable reference
     pub fn state(&self) -> &D { &self.state }
@@ -487,6 +398,8 @@ impl<F, R, D> CandlSurface<F, R, D>
     /// draw on the surface
     pub fn draw(&mut self) {
         //
+        self.render.draw_frame();
+        //
         //(self.render_fn)();
         //
         //let back_buffer = self.back_buffer().unwrap();
@@ -505,7 +418,7 @@ impl<F, R, D> CandlSurface<F, R, D>
         );
         */
         //
-        self.swap_buffers();
+        //self.swap_buffers();
     }
 }
 
@@ -539,9 +452,6 @@ impl CandlManagerBuilder {
     //
     //
 }
-
-/*
-
 
 /// The window manager
 ///
@@ -590,9 +500,10 @@ impl<M> CandlManager<(), M> {
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
-        options: CandlOptions
+        options: CandlOptions,
+        render: CandlGraphics
     ) -> Result<WindowId, CandlError> {
-        self.create_window_with_data(el, dim, title, options, ())
+        self.create_window_with_data(el, dim, title, options, render, ())
     }
 }
 
@@ -606,6 +517,13 @@ impl<D, M> CandlManager<D, M> {
         }
     }
 
+    /// create a new window from a CandlSurfaceBuilder
+    pub fn create_window_from_builder(&mut self, builder: CandlSurfaceBuilder) {
+        //
+        // TODO
+        //
+    }
+
     /// create a new window with surface associated data type
     pub fn create_window_with_data<T>(
         &mut self,
@@ -613,9 +531,10 @@ impl<D, M> CandlManager<D, M> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
+        render: CandlGraphics,
         init_data: D
     ) -> Result<WindowId, CandlError> {
-        let mut surface = CandlSurface::window_builder(el, dim, title, options, true, init_data)?;
+        let mut surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
         match &surface.ctx() {
             CandlCurrentWrapper::PossiblyCurrent(ctx) => {
                 let win_id = ctx.window().id();
@@ -749,7 +668,3 @@ impl<D, M> CandlManager<D, M> {
     /// get the data from the manager as a mutable reference
     pub fn data_mut(&mut self) -> &mut M { &mut self.data }
 }
-
-
-*/
-

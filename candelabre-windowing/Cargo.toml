@@ -5,6 +5,9 @@ authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+
+candelabre-core = {path = "../candelabre-core"}
+
 gl = "0.14.0"
 #glutin = {version = "0.22.0", default-features = false}
 glutin = "0.22.0"

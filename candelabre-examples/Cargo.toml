@@ -9,25 +9,15 @@ documentation = ""
 readme = "README.md"
 
 [[bin]]
-name = "test_fulli"
-path = "src/test_fulli.rs"
-
-#[[bin]]
-#name = "simple_window"
-#path = "src/simple_window.rs"
+name = "simple_window"
+path = "src/simple_window.rs"
 
 #[[bin]]
 #name = "multi_windows"
 #path = "src/multi_windows.rs"
 
 [dependencies]
+candelabre-core = { path = "../candelabre-core" }
 candelabre-windowing = { path = "../candelabre-windowing" }
 glutin = {version = "0.22.0", default-features = false}
-luminance-derive = "0.5.2"
 rand = "0.5.5"
-
-[dependencies.luminance]
-#version = "0.38.0"
-git = "https://github.com/othelarian/luminance-rs.git"
-branch = "multiwin"
-features = ["multi-contexts"]

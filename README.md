@@ -11,6 +11,10 @@ applications with GUI (candelabre-widgets) and multiple windows
 
 ## Crates
 
+### Candelabre core
+
+TODO
+
 ### Candelabre windowing system
 
 This crate helps you create windows for your application.

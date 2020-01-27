@@ -21,15 +21,16 @@
 //! * `CandlSurface`, a window type who generate a surface for using OpenGL
 //! * `CandlManager`, a window manager to enable using multiple windows in a
 //! single application / thread
+//! * `CandlWindow`, a trait on which `CandlSurface` is based on
 //!
-//! ## CandlSurface
+//! ## `CandlSurface`
 //! 
 //! Core of this lib, it's a simple way to get an OpenGL context and then use
 //! luminance [luminance](https://github.com/phaazon/luminance-rs/). Initially
 //! it's a copy of luminance-glutin lib, modified to be able to work with the
 //! CandlManager.
 //! 
-//! ## CandlManager
+//! ## `CandlManager`
 //! 
 //! When dealing with multiple windows in a single application, it quickly
 //! become complex and error prone. You can only use one OpenGL context at a
@@ -37,6 +38,14 @@
 //! what you display. With `CandlManager`, you have what you need to help you
 //! in this tedious task. It take the responsability to make the swap for you,
 //! and track each window you link to it.
+//! 
+//! ## `CandlWindow`
+//! 
+//! This trait was added to let developpers create their own implementation of
+//! `CandlSurface`, like using luminance to handle the OpenGL context, or get
+//! rid of the stateful capability of the `CandlSurface`. If an application
+//! need a simple way to handle a window, maybe the `CandlWindow` is the right
+//! tool to do it.
 //! 
 //! ## About data in `CandlSurface` and `CandlManager`
 //! 
@@ -170,10 +179,83 @@ impl CandlOptions {
     pub fn samples(&self) -> Option<u32> { self.samples }
 }
 
+// =======================================================================
+// =======================================================================
+//               CandlWindow
+// =======================================================================
+// =======================================================================
+
+/// Window trait
+///
+/// This trait can be used to create a new kind of `CandlSurface`, with a
+/// deeper connection with your code.
+pub trait CandlWindow {
+    /// code to init the basis of a window with an OpenGL context
+    fn init<T>(
+        el: &EventLoop<T>,
+        dim: CandlDimension,
+        title: &str,
+        options: CandlOptions
+    ) -> Result<WindowedContext<PossiblyCurrent>, CandlError> where T: 'static {
+        let win_builder = WindowBuilder::new().with_title(title);
+        let win_builder = match dim {
+            CandlDimension::Classic(w, h) =>
+                win_builder.with_inner_size(LogicalSize::new(w, h)),
+            CandlDimension::Fullscreen =>
+                win_builder.with_fullscreen(
+                    Some(Fullscreen::Exclusive(
+                        el.primary_monitor()
+                            .video_modes()
+                            .next()
+                            .unwrap()
+                    ))
+                ),
+            CandlDimension::FullscreenSpecific(w, h) =>
+                win_builder.with_inner_size(LogicalSize::new(w, h))
+                    .with_fullscreen(
+                        Some(Fullscreen::Exclusive(
+                            el.primary_monitor()
+                                .video_modes()
+                                .next()
+                                .unwrap()
+                        ))
+                    )
+        };
+        let ctx = ContextBuilder::new()
+            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
+            .with_gl_profile(GlProfile::Core)
+            .with_multisampling(options.samples().unwrap_or(0) as u16)
+            .with_double_buffer(Some(true))
+            .build_windowed(win_builder, &el)?;
+        let ctx = unsafe { ctx.make_current().map_err(|(_, e)| e)? };
+        ctx.window().set_cursor_visible(match options.cursor_mode() {
+            CursorMode::Visible => true,
+            CursorMode::Invisible => false
+        });
+        gl::load_with(|s| ctx.get_proc_address(s) as *const c_void);
+        Ok(ctx)
+    }
+
+    /// get the OpenGL context
+    fn ctx(&mut self) -> CandlCurrentWrapper;
+
+    /// change the OpenGL context
+    fn set_ctx(&mut self, nctx: CandlCurrentWrapper);
+
+    /// swap the buffer
+    fn swap_buffers(&mut self);
+}
+
+// =======================================================================
+// =======================================================================
+//               CandlSurfaceBuilder
+// =======================================================================
+// =======================================================================
+
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, D = ()> {
+pub struct CandlSurfaceBuilder<'a, D> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
@@ -181,7 +263,7 @@ pub struct CandlSurfaceBuilder<'a, D = ()> {
     state: Option<D>
 }
 
-impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> where D: Default {
+impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -227,11 +309,17 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> where D: Default {
                     self.title,
                     self.options,
                     render,
-                    self.state.unwrap_or_default()
+                    self.state
                 )
         }
     }
 }
+
+// =======================================================================
+// =======================================================================
+//               CandlSurface
+// =======================================================================
+// =======================================================================
 
 /// The display surface
 ///
@@ -246,14 +334,44 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> where D: Default {
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
-pub struct CandlSurface<D = ()> {
+pub struct CandlSurface<D> {
     ctx: CandlCurrentWrapper,
     render: CandlGraphics,
-    state: D
+    state: Option<D>
 }
 
-impl CandlSurface<()> {
-    /// creation of a CandlSurface
+impl<D> CandlWindow for CandlSurface<D> {
+    /// get the OpenGL context from the surface
+    fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx }
+
+    /// change the OpenGL context (make current or not current)
+    fn set_ctx(&mut self, nctx: CandlCurrentWrapper) { self.ctx = nctx; }
+
+    /// swap the OpenGL back buffer and current buffer
+    fn swap_buffers(&mut self) {
+        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx {
+            ctx.swap_buffers().unwrap();
+        }
+    }
+}
+
+impl<D> CandlElement<CandlSurface<D>> for CandlSurface<D> {
+    /// build method to make `CandlSurface` compatible with the `CandlManager`
+    /// 
+    /// WARNING: avoid at all cost the use of this method, prefer the builder
+    /// instead.
+    fn build<T>(
+        el: &EventLoop<T>,
+        dim: CandlDimension,
+        title: &str,
+        options: CandlOptions
+    ) -> Result<CandlSurface<D>, CandlError> {
+        <CandlSurface<D>>::window_builder(el, dim, title, options, CandlGraphics::new(), None)
+    }
+}
+
+impl<D> CandlSurface<D> {
+    /// standard creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
         dim: CandlDimension,
@@ -267,12 +385,10 @@ impl CandlSurface<()> {
             title,
             options,
             render,
-            ()
+            None
         )
     }
-}
 
-impl<D> CandlSurface<D> {
     /// constructor with data
     ///
     /// This constructor can be used to associate a data type to the window.
@@ -291,7 +407,7 @@ impl<D> CandlSurface<D> {
             title,
             options,
             render,
-            init_state
+            Some(init_state)
         )
     }
 
@@ -302,49 +418,11 @@ impl<D> CandlSurface<D> {
         title: &str,
         options: CandlOptions,
         render: CandlGraphics,
-        init_state: D
+        init_state: Option<D>
     ) -> Result<Self, CandlError> {
-        let win_builder = WindowBuilder::new().with_title(title);
-        let win_builder = match dim {
-            CandlDimension::Classic(w, h) =>
-                win_builder.with_inner_size(LogicalSize::new(w, h)),
-            CandlDimension::Fullscreen =>
-                win_builder.with_fullscreen(
-                    Some(Fullscreen::Exclusive(
-                        el.primary_monitor()
-                            .video_modes()
-                            .next()
-                            .unwrap()
-                    ))
-                ),
-            CandlDimension::FullscreenSpecific(w, h) =>
-                win_builder.with_inner_size(LogicalSize::new(w, h))
-                    .with_fullscreen(
-                        Some(Fullscreen::Exclusive(
-                            el.primary_monitor()
-                                .video_modes()
-                                .next()
-                                .unwrap()
-                        ))
-                    )
-        };
-        let ctx = ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-            .with_gl_profile(GlProfile::Core)
-            .with_multisampling(options.samples().unwrap_or(0) as u16)
-            .with_double_buffer(Some(true))
-            .build_windowed(win_builder, &el)?;
-        let ctx = unsafe { ctx.make_current().map_err(|(_, e)| e)? };
-        ctx.window().set_cursor_visible(match options.cursor_mode() {
-            CursorMode::Visible => true,
-            CursorMode::Invisible => false
-        });
-        gl::load_with(|s| ctx.get_proc_address(s) as *const c_void);
-        Ok(CandlSurface {
-            ctx: CandlCurrentWrapper::PossiblyCurrent(ctx),
-            render,
-            state: init_state
-        })
+        let ctx = <CandlSurface<D>>::init(el, dim, title, options)?;
+        let ctx = CandlCurrentWrapper::PossiblyCurrent(ctx);
+        Ok(CandlSurface {ctx, render, state: init_state})
     }
 
     /// change the title of the window
@@ -364,13 +442,10 @@ impl<D> CandlSurface<D> {
     pub fn render_mut(&mut self) -> &mut CandlGraphics { &mut self.render }
 
     /// get the data as a immutable reference
-    pub fn state(&self) -> &D { &self.state }
+    pub fn state(&self) -> &Option<D> { &self.state }
 
     /// get the data as a mutable reference
-    pub fn state_mut(&mut self) -> &mut D { &mut self.state }
-
-    /// get the OpenGL context from the surface
-    pub fn ctx(&mut self) -> &mut CandlCurrentWrapper { &mut self.ctx }
+    pub fn state_mut(&mut self) -> &mut Option<D> { &mut self.state }
 
     /// requesting redraw for the window
     pub fn request_redraw(&mut self) {
@@ -397,13 +472,6 @@ impl<D> CandlSurface<D> {
         }
     }
     */
-
-    /// swap the OpenGL back buffer and current buffer
-    pub fn swap_buffers(&mut self) {
-        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx {
-            ctx.swap_buffers().unwrap();
-        }
-    }
 
     /// draw on the surface
     pub fn draw(&mut self) {
@@ -432,6 +500,12 @@ impl<D> CandlSurface<D> {
     }
 }
 
+// =======================================================================
+// =======================================================================
+//               CandlManager
+// =======================================================================
+// =======================================================================
+
 /// Tracking the context status
 ///
 /// When working with OpenGL context it's important to know if the context you
@@ -446,6 +520,22 @@ pub enum CandlCurrentWrapper {
     PossiblyCurrent(WindowedContext<PossiblyCurrent>),
     /// OpenGL context is not current
     NotCurrent(WindowedContext<NotCurrent>)
+}
+
+/// `CandlElement` trait
+/// 
+/// This trait's purpose is to enable using `CandlWindow` in the manager
+/// without too many boilerplate in the surface side. With this code it's easy
+/// to just implement both `CandlWindow` and `CandlElement` traits on a single
+/// type to make it usable with the `CandlManager`.
+pub trait CandlElement<W: CandlWindow> {
+    /// to use `CandlWindow` with `CandlManager` the type implementing this
+    /// trait must implement the window_builder method
+    fn build<T>(
+        el: &EventLoop<T>,
+        dim: CandlDimension,
+        title: &str,
+        options: CandlOptions) -> Result<W, CandlError>;
 }
 
 /// The window manager
@@ -463,20 +553,47 @@ pub enum CandlCurrentWrapper {
 /// Check the
 /// [candelabre examples](https://github.com/othelarian/candelabre/tree/master/candelabre-examples)
 /// to see it in action.
-pub struct CandlManager<D, M> {
+pub struct CandlManager<W: CandlWindow, M> {
+//pub struct CandlManager<D, M> {
     current: Option<WindowId>,
-    surfaces: HashMap<WindowId, Takeable<CandlSurface<D>>>,
+    surfaces: HashMap<WindowId, Takeable<W>>,
     data: M
 }
 
-impl<D> CandlManager<D, ()> {
+impl<S: CandlWindow> CandlManager<S, ()> {
     /// most default constructor for the manager
     pub fn new() -> Self {
         CandlManager { current: None, surfaces: HashMap::default(), data: () }
     }
 }
 
-impl<M> CandlManager<(), M> {
+impl<D, M> CandlManager<CandlSurface<D>, M> {
+    /// create a new window from a CandlSurfaceBuilder
+    pub fn create_window_from_builder<T>(
+        &mut self,
+        builder: CandlSurfaceBuilder<D>,
+        el: &EventLoop<T>
+    ) -> Result<WindowId, CandlError> {
+        let surface = builder.build(el).unwrap();
+        self.add_window(surface)
+    }
+
+    /// create a new window with surface associated data type
+    pub fn create_window_with_data<T>(
+        &mut self,
+        el: &EventLoop<T>,
+        dim: CandlDimension,
+        title: &str,
+        options: CandlOptions,
+        render: CandlGraphics,
+        init_data: Option<D>
+    ) -> Result<WindowId, CandlError> {
+        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
+        self.add_window(surface)
+    }
+}
+
+impl<W: CandlWindow, M> CandlManager<W, M> {
     /// create a new window, tracked by the manager
     /// 
     /// For internal reason, it isn't possible to add a `CandlSurface` manually
@@ -496,13 +613,11 @@ impl<M> CandlManager<(), M> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: CandlGraphics
     ) -> Result<WindowId, CandlError> {
-        self.create_window_with_data(el, dim, title, options, render, ())
+        let surface = CandlElement<W>::build(el, dim, title, options)?;
+        self.add_window(surface)
     }
-}
 
-impl<D, M> CandlManager<D, M> where D: Default {
     /// constructor for the manager with data type link to it
     pub fn new_with_data(init_data: M) -> Self {
         CandlManager {
@@ -512,41 +627,17 @@ impl<D, M> CandlManager<D, M> where D: Default {
         }
     }
 
-    /// create a new window from a CandlSurfaceBuilder
-    pub fn create_window_from_builder<T>(
-        &mut self,
-        builder: CandlSurfaceBuilder<D>,
-        el: &EventLoop<T>
-    ) -> Result<WindowId, CandlError> {
-        let surface = builder.build(el).unwrap();
-        self.add_widow(surface)
-    }
-
-    /// create a new window with surface associated data type
-    pub fn create_window_with_data<T>(
-        &mut self,
-        el: &EventLoop<T>,
-        dim: CandlDimension,
-        title: &str,
-        options: CandlOptions,
-        render: CandlGraphics,
-        init_data: D
-    ) -> Result<WindowId, CandlError> {
-        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
-        self.add_widow(surface)
-    }
-
     /// internal method to truly add the new window
-    fn add_widow(&mut self, mut surface: CandlSurface<D>) -> Result<WindowId, CandlError> {
+    fn add_window(&mut self, mut surface: W) -> Result<WindowId, CandlError> {
         match &surface.ctx() {
             CandlCurrentWrapper::PossiblyCurrent(ctx) => {
                 let win_id = ctx.window().id();
                 if let Some(old_id) = self.current.take() {
                     if let Some(old_surface) = self.surfaces.get_mut(&old_id) {
                         let mut old_win = Takeable::take(old_surface);
-                        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = old_win.ctx {
+                        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = old_win.ctx() {
                             let nctx = unsafe { ctx.treat_as_not_current() };
-                            old_win.ctx = CandlCurrentWrapper::NotCurrent(nctx);
+                            old_win.set_ctx(CandlCurrentWrapper::NotCurrent(nctx));
                         }
                         *old_surface = Takeable::new(old_win);
                     }
@@ -587,11 +678,11 @@ impl<D, M> CandlManager<D, M> where D: Default {
     /// the method try to swap the OpenGL contexts to make the asked window
     /// current, and make the old current context not current.
     pub fn get_current(&mut self, id: WindowId)
-    -> Result<&mut CandlSurface<D>, ContextError> {
+    -> Result<&mut W, ContextError> {
         let res = if Some(id) != self.current {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
             let mut ncurr_surface = Takeable::take(ncurr_ref);
-            match ncurr_surface.ctx {
+            match ncurr_surface.ctx() {
                 CandlCurrentWrapper::PossiblyCurrent(_) => {
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())
@@ -601,7 +692,7 @@ impl<D, M> CandlManager<D, M> where D: Default {
                         Err((rctx, err)) => {
                             match rctx.make_not_current() {
                                 Ok(rctx) => {
-                                    ncurr_surface.ctx = CandlCurrentWrapper::NotCurrent(rctx);
+                                    ncurr_surface.set_ctx(CandlCurrentWrapper::NotCurrent(rctx));
                                     *ncurr_ref = Takeable::new(ncurr_surface);
                                     Err(err)
                                 }
@@ -610,7 +701,7 @@ impl<D, M> CandlManager<D, M> where D: Default {
                             }
                         }
                         Ok(rctx) => {
-                            ncurr_surface.ctx = CandlCurrentWrapper::PossiblyCurrent(rctx);
+                            ncurr_surface.set_ctx(CandlCurrentWrapper::PossiblyCurrent(rctx));
                             *ncurr_ref = Takeable::new(ncurr_surface);
                             Ok(())
                         }
@@ -621,7 +712,7 @@ impl<D, M> CandlManager<D, M> where D: Default {
         else {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
             let ncurr_surface = Takeable::take(ncurr_ref);
-            match &ncurr_surface.ctx {
+            match &ncurr_surface.ctx() {
                 CandlCurrentWrapper::PossiblyCurrent(_) => {
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())
@@ -635,8 +726,8 @@ impl<D, M> CandlManager<D, M> where D: Default {
                     if let Some(old_id) = self.current.take() {
                         let old_ref = self.surfaces.get_mut(&old_id).unwrap();
                         let mut old_surface = Takeable::take(old_ref);
-                        if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx {
-                            unsafe { old_surface.ctx = CandlCurrentWrapper::NotCurrent(octx.treat_as_not_current()); }
+                        if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx() {
+                            unsafe { old_surface.set_ctx(CandlCurrentWrapper::NotCurrent(octx.treat_as_not_current())); }
                         }
                         *old_ref = Takeable::new(old_surface);
                     }
@@ -648,13 +739,13 @@ impl<D, M> CandlManager<D, M> where D: Default {
                 if let Some(old_id) = self.current.take() {
                     let old_ref = self.surfaces.get_mut(&old_id).unwrap();
                     let mut old_surface = Takeable::take(old_ref);
-                    if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx {
+                    if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx() {
                         unsafe {
                             match octx.make_not_current() {
                                 Err((_, err2)) =>
                                     panic!("make current and make not current panic: {}, {}", err, err2),
                                 Ok(octx) =>
-                                    old_surface.ctx = CandlCurrentWrapper::NotCurrent(octx)
+                                    old_surface.set_ctx(CandlCurrentWrapper::NotCurrent(octx))
                             }
                         }
                     }

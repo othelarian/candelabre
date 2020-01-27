@@ -16,8 +16,13 @@ path = "src/simple_window.rs"
 #name = "multi_windows"
 #path = "src/multi_windows.rs"
 
+#[[bin]]
+#name = "luminance"
+#path = "src/luminance.rs"
+
 [dependencies]
 candelabre-core = { path = "../candelabre-core" }
 candelabre-windowing = { path = "../candelabre-windowing" }
 glutin = {version = "0.22.0", default-features = false}
+luminance = "0.38.0"
 rand = "0.5.5"

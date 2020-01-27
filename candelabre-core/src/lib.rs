@@ -14,6 +14,7 @@
 use gl;
 
 /// Structure to handle all direct OpenGL operations
+#[derive(Debug)]
 pub struct CandlGraphics {
     //gl: gl::Gl,
     clear_color: [f32; 4]

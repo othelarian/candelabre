@@ -20,7 +20,7 @@ fn use_surface_builder() -> Result<(), String> {
 #[test]
 fn create_window() -> Result<(), String> {
     let el = EventLoop::new();
-    match CandlSurface::new(
+    match <CandlSurface<()>>::new(
         &el,
         CandlDimension::Classic(800, 400),
         "test candelabre window",
@@ -51,17 +51,19 @@ fn create_window_with_data() -> Result<(), String> {
 #[test]
 fn open_multi_windows() -> Result<(), String> {
     let el = EventLoop::new();
-    let mut win_manager = CandlManager::new();
+    let mut win_manager: CandlManager<CandlSurface<()>, ()> = CandlManager::new();
     for win_idx in 0..3 {
-        &win_manager.create_window(
+        &win_manager.create_window::<_, CandlSurface<()>>(
             &el,
             CandlDimension::Classic(800, 400),
             &format!("test candelabre multi window: #{}", win_idx+1),
-            CandlOptions::default(),
-            CandlGraphics::new()
+            CandlOptions::default()
         ).unwrap();
     }
     let ids = win_manager.list_window_ids();
+    for idx in &ids {
+        win_manager.get_current(idx.clone()).unwrap();
+    }
     for idx in &ids {
         win_manager.get_current(idx.clone()).unwrap();
     }

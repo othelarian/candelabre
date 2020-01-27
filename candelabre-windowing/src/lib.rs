@@ -179,6 +179,23 @@ impl CandlOptions {
     pub fn samples(&self) -> Option<u32> { self.samples }
 }
 
+/// Tracking the context status
+///
+/// When working with OpenGL context it's important to know if the context you
+/// working with is the current one or not. If you're using only one window,
+/// it's ok to avoid this enum and only use `PossiblyCurrent`, because the
+/// context status will never change. But if you need multiple windows, you
+/// need to know if the context you want to work with is the current one, and
+/// if not you need to change that. The `CandlManager` is here to do that for
+/// you, and use `CandlCurrentWrapper` to do so.
+#[derive(Debug)]
+pub enum CandlCurrentWrapper {
+    /// OpenGL context is probably current
+    PossiblyCurrent(WindowedContext<PossiblyCurrent>),
+    /// OpenGL context is not current
+    NotCurrent(WindowedContext<NotCurrent>)
+}
+
 // =======================================================================
 // =======================================================================
 //               CandlWindow
@@ -236,8 +253,11 @@ pub trait CandlWindow {
         Ok(ctx)
     }
 
-    /// get the OpenGL context
+    /// get the OpenGL context wrapper
     fn ctx(&mut self) -> CandlCurrentWrapper;
+
+    /// get a reference to the OpenGL context wrapper
+    fn ctx_ref(&self) -> &CandlCurrentWrapper;
 
     /// change the OpenGL context
     fn set_ctx(&mut self, nctx: CandlCurrentWrapper);
@@ -334,22 +354,26 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
 /// type of the surface, and a second constructor called `new_with_data()` is
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
+#[derive(Debug)]
 pub struct CandlSurface<D> {
-    ctx: CandlCurrentWrapper,
+    ctx: Option<CandlCurrentWrapper>,
     render: CandlGraphics,
     state: Option<D>
 }
 
 impl<D> CandlWindow for CandlSurface<D> {
     /// get the OpenGL context from the surface
-    fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx }
+    fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx.take().unwrap() }
+
+    /// get the reference to the OpenGL context
+    fn ctx_ref(&self) -> &CandlCurrentWrapper { self.ctx.as_ref().unwrap() }
 
     /// change the OpenGL context (make current or not current)
-    fn set_ctx(&mut self, nctx: CandlCurrentWrapper) { self.ctx = nctx; }
+    fn set_ctx(&mut self, nctx: CandlCurrentWrapper) { self.ctx = Some(nctx); }
 
     /// swap the OpenGL back buffer and current buffer
     fn swap_buffers(&mut self) {
-        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx {
+        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = self.ctx.as_ref().unwrap() {
             ctx.swap_buffers().unwrap();
         }
     }
@@ -421,13 +445,13 @@ impl<D> CandlSurface<D> {
         init_state: Option<D>
     ) -> Result<Self, CandlError> {
         let ctx = <CandlSurface<D>>::init(el, dim, title, options)?;
-        let ctx = CandlCurrentWrapper::PossiblyCurrent(ctx);
+        let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
         Ok(CandlSurface {ctx, render, state: init_state})
     }
 
     /// change the title of the window
     pub fn title(&mut self, new_title: &str) {
-        match &self.ctx {
+        match self.ctx.as_ref().unwrap() {
             CandlCurrentWrapper::PossiblyCurrent(ctx) =>
                 ctx.window().set_title(new_title),
             CandlCurrentWrapper::NotCurrent(ctx) =>
@@ -449,7 +473,7 @@ impl<D> CandlSurface<D> {
 
     /// requesting redraw for the window
     pub fn request_redraw(&mut self) {
-        match &self.ctx {
+        match self.ctx.as_ref().unwrap() {
             CandlCurrentWrapper::PossiblyCurrent(ctx) =>
                 ctx.window().request_redraw(),
             CandlCurrentWrapper::NotCurrent(_) => ()
@@ -506,22 +530,6 @@ impl<D> CandlSurface<D> {
 // =======================================================================
 // =======================================================================
 
-/// Tracking the context status
-///
-/// When working with OpenGL context it's important to know if the context you
-/// working with is the current one or not. If you're using only one window,
-/// it's ok to avoid this enum and only use `PossiblyCurrent`, because the
-/// context status will never change. But if you need multiple windows, you
-/// need to know if the context you want to work with is the current one, and
-/// if not you need to change that. The `CandlManager` is here to do that for
-/// you, and use `CandlCurrentWrapper` to do so.
-pub enum CandlCurrentWrapper {
-    /// OpenGL context is probably current
-    PossiblyCurrent(WindowedContext<PossiblyCurrent>),
-    /// OpenGL context is not current
-    NotCurrent(WindowedContext<NotCurrent>)
-}
-
 /// `CandlElement` trait
 /// 
 /// This trait's purpose is to enable using `CandlWindow` in the manager
@@ -560,7 +568,7 @@ pub struct CandlManager<W: CandlWindow, M> {
     data: M
 }
 
-impl<S: CandlWindow> CandlManager<S, ()> {
+impl<W: CandlWindow> CandlManager<W, ()> {
     /// most default constructor for the manager
     pub fn new() -> Self {
         CandlManager { current: None, surfaces: HashMap::default(), data: () }
@@ -607,14 +615,14 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
     /// surfaces data type of the manager, it isn't in the scope of this lib to
     /// handle the complexity of multiple data type across an hashmap of
     /// surfaces.
-    pub fn create_window<T>(
+    pub fn create_window<T, E: CandlElement<W>>(
         &mut self,
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
     ) -> Result<WindowId, CandlError> {
-        let surface = CandlElement<W>::build(el, dim, title, options)?;
+        let surface = E::build(el, dim, title, options)?;
         self.add_window(surface)
     }
 
@@ -629,27 +637,33 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
 
     /// internal method to truly add the new window
     fn add_window(&mut self, mut surface: W) -> Result<WindowId, CandlError> {
-        match &surface.ctx() {
+        let surface_ctx = surface.ctx();
+        match &surface_ctx {
             CandlCurrentWrapper::PossiblyCurrent(ctx) => {
                 let win_id = ctx.window().id();
                 if let Some(old_id) = self.current.take() {
                     if let Some(old_surface) = self.surfaces.get_mut(&old_id) {
                         let mut old_win = Takeable::take(old_surface);
-                        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = old_win.ctx() {
+                        let ctx_wrapper = old_win.ctx();
+                        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = ctx_wrapper {
                             let nctx = unsafe { ctx.treat_as_not_current() };
                             old_win.set_ctx(CandlCurrentWrapper::NotCurrent(nctx));
+                        } else {
+                            old_win.set_ctx(ctx_wrapper);
                         }
                         *old_surface = Takeable::new(old_win);
                     }
                 }
+                surface.set_ctx(surface_ctx);
                 self.surfaces.insert(win_id, Takeable::new(surface));
                 self.current = Some(win_id);
                 Ok(win_id)
             }
-            CandlCurrentWrapper::NotCurrent(_) =>
+            CandlCurrentWrapper::NotCurrent(_) => {
                 Err(CandlError::InternalError(
                     "Surface creation from manager generated a not current context"
                 ))
+            }
         }
     }
 
@@ -711,7 +725,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
         }
         else {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
-            let ncurr_surface = Takeable::take(ncurr_ref);
+            let mut ncurr_surface = Takeable::take(ncurr_ref);
             match &ncurr_surface.ctx() {
                 CandlCurrentWrapper::PossiblyCurrent(_) => {
                     *ncurr_ref = Takeable::new(ncurr_surface);

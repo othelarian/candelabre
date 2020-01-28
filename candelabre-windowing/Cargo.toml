@@ -9,9 +9,7 @@ edition = "2018"
 candelabre-core = {path = "../candelabre-core"}
 
 gl = "0.14.0"
-#glutin = {version = "0.22.0", default-features = false}
 glutin = "0.22.0"
-takeable-option = "0.5.0"
 
 [dependencies.luminance]
 #version = "0.38.0"

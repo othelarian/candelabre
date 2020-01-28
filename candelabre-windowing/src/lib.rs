@@ -72,8 +72,6 @@ use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
-use takeable_option::Takeable;
-
 
 /// The error of Candelabre Windowing
 /// 
@@ -564,7 +562,7 @@ pub trait CandlElement<W: CandlWindow> {
 pub struct CandlManager<W: CandlWindow, M> {
 //pub struct CandlManager<D, M> {
     current: Option<WindowId>,
-    surfaces: HashMap<WindowId, Takeable<W>>,
+    surfaces: HashMap<WindowId, Option<W>>,
     data: M
 }
 
@@ -643,7 +641,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                 let win_id = ctx.window().id();
                 if let Some(old_id) = self.current.take() {
                     if let Some(old_surface) = self.surfaces.get_mut(&old_id) {
-                        let mut old_win = Takeable::take(old_surface);
+                        let mut old_win = old_surface.take().unwrap();
                         let ctx_wrapper = old_win.ctx();
                         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = ctx_wrapper {
                             let nctx = unsafe { ctx.treat_as_not_current() };
@@ -651,11 +649,11 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                         } else {
                             old_win.set_ctx(ctx_wrapper);
                         }
-                        *old_surface = Takeable::new(old_win);
+                        old_surface.replace(old_win);
                     }
                 }
                 surface.set_ctx(surface_ctx);
-                self.surfaces.insert(win_id, Takeable::new(surface));
+                self.surfaces.insert(win_id, Some(surface));
                 self.current = Some(win_id);
                 Ok(win_id)
             }
@@ -695,12 +693,12 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
     -> Result<&mut W, CandlError> {
         let res = if Some(id) != self.current {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
-            let mut ncurr_surface = Takeable::take(ncurr_ref);
+            let mut ncurr_surface = ncurr_ref.take().unwrap();
             let nctx_wrapper = ncurr_surface.ctx();
             match nctx_wrapper {
                 CandlCurrentWrapper::PossiblyCurrent(nctx) => {
                     ncurr_surface.set_ctx(CandlCurrentWrapper::PossiblyCurrent(nctx));
-                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    ncurr_ref.replace(ncurr_surface);
                     Ok(())
                 }
                 CandlCurrentWrapper::NotCurrent(nctx) => unsafe {
@@ -709,7 +707,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                             match rctx.make_not_current() {
                                 Ok(rctx) => {
                                     ncurr_surface.set_ctx(CandlCurrentWrapper::NotCurrent(rctx));
-                                    *ncurr_ref = Takeable::new(ncurr_surface);
+                                    ncurr_ref.replace(ncurr_surface);
                                     Err(CandlError::from(err))
                                 }
                                 Err((_, err2)) => {
@@ -719,7 +717,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                         }
                         Ok(rctx) => {
                             ncurr_surface.set_ctx(CandlCurrentWrapper::PossiblyCurrent(rctx));
-                            *ncurr_ref = Takeable::new(ncurr_surface);
+                            ncurr_ref.replace(ncurr_surface);
                             Ok(())
                         }
                     }
@@ -728,10 +726,10 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
         }
         else {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
-            let ncurr_surface = Takeable::take(ncurr_ref);
+            let ncurr_surface = ncurr_ref.take().unwrap();
             match ncurr_surface.ctx_ref() {
                 CandlCurrentWrapper::PossiblyCurrent(_) => {
-                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    ncurr_ref.replace(ncurr_surface);
                     Ok(())
                 }
                 CandlCurrentWrapper::NotCurrent(_) => panic!()
@@ -742,7 +740,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                 if Some(id) != self.current {
                     if let Some(old_id) = self.current.take() {
                         let old_ref = self.surfaces.get_mut(&old_id).unwrap();
-                        let mut old_surface = Takeable::take(old_ref);
+                        let mut old_surface = old_ref.take().unwrap();
                         let octx_wrapper = old_surface.ctx();
                         let noctx = match octx_wrapper {
                             CandlCurrentWrapper::PossiblyCurrent(octx) =>
@@ -750,16 +748,16 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                             CandlCurrentWrapper::NotCurrent(octx) => octx
                         };
                         old_surface.set_ctx(CandlCurrentWrapper::NotCurrent(noctx));
-                        *old_ref = Takeable::new(old_surface);
+                        old_ref.replace(old_surface);
                     }
                     self.current = Some(id);
                 }
-                Ok(self.surfaces.get_mut(&id).unwrap())
+                Ok(self.surfaces.get_mut(&id).unwrap().as_mut().unwrap())
             }
             Err(err) => {
                 if let Some(old_id) = self.current.take() {
                     let old_ref = self.surfaces.get_mut(&old_id).unwrap();
-                    let mut old_surface = Takeable::take(old_ref);
+                    let mut old_surface = old_ref.take().unwrap();
                     let octx_wrapper = old_surface.ctx();
                     if let CandlCurrentWrapper::PossiblyCurrent(octx) = octx_wrapper {
                         unsafe {
@@ -771,7 +769,7 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                             }
                         }
                     }
-                    *old_ref = Takeable::new(old_surface);
+                    old_ref.replace(old_surface);
                 }
                 Err(err)
             }

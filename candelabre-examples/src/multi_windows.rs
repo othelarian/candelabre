@@ -14,11 +14,6 @@ use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
 use glutin::event_loop::{ControlFlow, EventLoop};
-use luminance::context::GraphicsContext;
-use luminance::pipeline::PipelineState;
-use luminance::render_state::RenderState;
-use luminance::shader::program::Program;
-use luminance::tess::{Mode, Tess, TessBuilder};
 
 mod utils;
 //use utils::{FS, OGL_TRIANGLE, Semantics, VS};

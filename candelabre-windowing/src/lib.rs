@@ -464,10 +464,10 @@ impl<D> CandlSurface<D> {
     pub fn render_mut(&mut self) -> &mut CandlGraphics { &mut self.render }
 
     /// get the data as a immutable reference
-    pub fn state(&self) -> &Option<D> { &self.state }
+    pub fn state(&self) -> Option<&D> { self.state.as_ref() }
 
     /// get the data as a mutable reference
-    pub fn state_mut(&mut self) -> &mut Option<D> { &mut self.state }
+    pub fn state_mut(&mut self) -> Option<&mut D> { self.state.as_mut() }
 
     /// requesting redraw for the window
     pub fn request_redraw(&mut self) {

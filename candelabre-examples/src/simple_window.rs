@@ -24,6 +24,14 @@ use utils::{
 };
 */
 
+const TITLES_LIST: [&str; 5] = [
+    "Candelabre example - Simple window",
+    "The first example of candelabre",
+    "The purpose of this example is to show",
+    "the usage of candelabre libs",
+    "from OpenGL to candelabre ;-)"
+];
+
 fn main() {
     let el = EventLoop::new();
 
@@ -35,7 +43,7 @@ fn main() {
 
     let mut surface = CandlSurfaceBuilder::new()
         .dim(CandlDimension::Classic(800, 400))
-        .title("Candelabre example - Simple window")
+        .title(TITLES_LIST[0])
         .options(CandlOptions::default())
         .render(CandlGraphics::new())
         .state(SurfaceState::default())
@@ -77,7 +85,7 @@ fn main() {
                     }, ..
                 } => {
                     //
-                    // TODO : randomly define a new clear color
+                    // TODO : change bg color
                     //
                 }
                 WindowEvent::KeyboardInput {
@@ -87,10 +95,13 @@ fn main() {
                         ..
                     }, ..
                 } => {
-                    //
-                    // TODO : change the name of the window
-                    //
-                    //
+                    let value = {
+                        let state = surface.state_mut().unwrap();
+                        let value = state.value();
+                        *value = if value == &4 { 0 } else { *value+1 };
+                        value.clone()
+                    };
+                    surface.title(TITLES_LIST[value as usize]);
                 }
                 _ => ()
             }

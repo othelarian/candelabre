@@ -1,12 +1,4 @@
 /*
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Semantics)]
-pub enum Semantics {
-    #[sem(name = "co", repr = "[f32; 2]", wrapper = "VertexPosition")]
-    Position,
-    #[sem(name = "color", repr = "[u8; 3]", wrapper = "VertexColor")]
-    Color
-}
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Vertex)]
 #[vertex(sem = "Semantics")]
@@ -16,9 +8,6 @@ pub struct Vertex {
     rgb: VertexColor
 }
 
-pub const VS: &'static str = include_str!("../resources/simple-vs.glsl");
-pub const FS: &'static str = include_str!("../resources/simple-fs.glsl");
-
 pub const OGL_TRIANGLE: [Vertex; 3] = [
     Vertex {pos: VertexPosition::new([-0.5, 0.5]), rgb: VertexColor::new([0, 255, 0])},
     Vertex {pos: VertexPosition::new([-0.0, 0.0]), rgb: VertexColor::new([255, 0, 0])},
@@ -27,6 +16,10 @@ pub const OGL_TRIANGLE: [Vertex; 3] = [
 
 */
 
+pub const VS: &'static str = include_str!("../resources/simple-vs.glsl");
+pub const FS: &'static str = include_str!("../resources/simple-fs.glsl");
+
+#[allow(dead_code)]
 pub struct SurfaceState {
     redraw: bool,
     //bgcol: [f32; 4]
@@ -41,6 +34,7 @@ impl Default for SurfaceState {
     }
 }
 
+#[allow(dead_code)]
 impl SurfaceState {
     pub fn ask_draw(&mut self) { self.redraw = true; }
     pub fn need_redraw(&self) -> bool { self.redraw }

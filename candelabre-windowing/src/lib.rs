@@ -65,6 +65,7 @@ use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
     PossiblyCurrent, WindowedContext
 };
+use glutin::{ContextError, CreationError};
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
@@ -73,7 +74,6 @@ use std::fmt;
 use std::os::raw::c_void;
 use takeable_option::Takeable;
 
-pub use glutin::{ContextError, CreationError};
 
 /// The error of Candelabre Windowing
 /// 
@@ -582,7 +582,7 @@ impl<D, M> CandlManager<CandlSurface<D>, M> {
         builder: CandlSurfaceBuilder<D>,
         el: &EventLoop<T>
     ) -> Result<WindowId, CandlError> {
-        let surface = builder.build(el).unwrap();
+        let surface = builder.build(el)?;
         self.add_window(surface)
     }
 
@@ -692,12 +692,14 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
     /// the method try to swap the OpenGL contexts to make the asked window
     /// current, and make the old current context not current.
     pub fn get_current(&mut self, id: WindowId)
-    -> Result<&mut W, ContextError> {
+    -> Result<&mut W, CandlError> {
         let res = if Some(id) != self.current {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
             let mut ncurr_surface = Takeable::take(ncurr_ref);
-            match ncurr_surface.ctx() {
-                CandlCurrentWrapper::PossiblyCurrent(_) => {
+            let nctx_wrapper = ncurr_surface.ctx();
+            match nctx_wrapper {
+                CandlCurrentWrapper::PossiblyCurrent(nctx) => {
+                    ncurr_surface.set_ctx(CandlCurrentWrapper::PossiblyCurrent(nctx));
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())
                 }
@@ -708,10 +710,11 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                                 Ok(rctx) => {
                                     ncurr_surface.set_ctx(CandlCurrentWrapper::NotCurrent(rctx));
                                     *ncurr_ref = Takeable::new(ncurr_surface);
-                                    Err(err)
+                                    Err(CandlError::from(err))
                                 }
-                                Err((_, err2)) =>
-                                    panic!("Couldn't make current and not current: {}, {}", err, err2)
+                                Err((_, err2)) => {
+                                    panic!("Couldn't make current and not current: {}, {}", err, err2);
+                                }
                             }
                         }
                         Ok(rctx) => {
@@ -725,8 +728,8 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
         }
         else {
             let ncurr_ref = self.surfaces.get_mut(&id).unwrap();
-            let mut ncurr_surface = Takeable::take(ncurr_ref);
-            match &ncurr_surface.ctx() {
+            let ncurr_surface = Takeable::take(ncurr_ref);
+            match ncurr_surface.ctx_ref() {
                 CandlCurrentWrapper::PossiblyCurrent(_) => {
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())
@@ -740,9 +743,13 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                     if let Some(old_id) = self.current.take() {
                         let old_ref = self.surfaces.get_mut(&old_id).unwrap();
                         let mut old_surface = Takeable::take(old_ref);
-                        if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx() {
-                            unsafe { old_surface.set_ctx(CandlCurrentWrapper::NotCurrent(octx.treat_as_not_current())); }
-                        }
+                        let octx_wrapper = old_surface.ctx();
+                        let noctx = match octx_wrapper {
+                            CandlCurrentWrapper::PossiblyCurrent(octx) =>
+                                unsafe { octx.treat_as_not_current() },
+                            CandlCurrentWrapper::NotCurrent(octx) => octx
+                        };
+                        old_surface.set_ctx(CandlCurrentWrapper::NotCurrent(noctx));
                         *old_ref = Takeable::new(old_surface);
                     }
                     self.current = Some(id);
@@ -753,7 +760,8 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
                 if let Some(old_id) = self.current.take() {
                     let old_ref = self.surfaces.get_mut(&old_id).unwrap();
                     let mut old_surface = Takeable::take(old_ref);
-                    if let CandlCurrentWrapper::PossiblyCurrent(octx) = old_surface.ctx() {
+                    let octx_wrapper = old_surface.ctx();
+                    if let CandlCurrentWrapper::PossiblyCurrent(octx) = octx_wrapper {
                         unsafe {
                             match octx.make_not_current() {
                                 Err((_, err2)) =>

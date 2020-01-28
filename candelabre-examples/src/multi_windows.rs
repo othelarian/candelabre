@@ -5,6 +5,7 @@
 //! * 'A' to add a new window
 //! * 'SPACE' to generate randomly a new background color for the current window
 
+use candelabre_core::CandlGraphics;
 use candelabre_windowing::{
     CandlCurrentWrapper, CandlDimension, CandlManager,
     CandlOptions, CandlSurface
@@ -20,7 +21,8 @@ use luminance::shader::program::Program;
 use luminance::tess::{Mode, Tess, TessBuilder};
 
 mod utils;
-use utils::{FS, OGL_TRIANGLE, Semantics, VS};
+//use utils::{FS, OGL_TRIANGLE, Semantics, VS};
+use utils::{FS, VS};
 
 struct WindowData {
     pub redraw: bool,
@@ -36,27 +38,27 @@ impl Default for WindowData {
 fn main() {
     let el = EventLoop::new();
     let mut win_manager = CandlManager::new_with_data(0);
-    // only data to compute the state
 
+    // first window
     let win_id = win_manager.create_window_with_data(
         &el,
         CandlDimension::Classic(800, 400),
         "first window",
         CandlOptions::default(),
-        WindowData::default()
+        CandlGraphics::new(),
+        Some(WindowData::default())
     ).unwrap();
-    //
-    // TODO : set up the WindowData tess for the previously created surface
-    //
 
-    let program = Program::<Semantics, (), ()>::from_strings(None, VS, None, FS)
-        .expect("program creation")
-        .ignore_warnings();
+    //
+    //
+    println!("empty? {}", win_manager.is_empty());
+    println!("window ids: {:?}", win_manager.list_window_ids());
+    //
 
     el.run(move |evt, _, ctrl_flow| {
         match evt {
             Event::LoopDestroyed => return,
-            Event::WindowEvent {event, ..} => match event {
+            Event::WindowEvent {event, window_id} => match event {
                 WindowEvent::Resized(physical_size) => {
                     //
                     // TODO : resize the current window
@@ -69,11 +71,7 @@ fn main() {
                         virtual_keycode: Some(VirtualKeyCode::Escape),
                         ..
                     }, ..
-                } => { // close the current window
-                    //
-                    // TODO : close the current window
-                    //
-                }
+                } => win_manager.remove_window(window_id),
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput {
                         state: ElementState::Released,
@@ -104,24 +102,10 @@ fn main() {
                 //
             }
             Event::RedrawRequested(win_id) => {
-                let surface = win_manager.get_current(win_id.clone()).unwrap();
-                let back_buffer = surface.back_buffer().unwrap();
+                //let surface = win_manager.get_current(win_id.clone()).unwrap();
                 //
-                let bgcol = surface.data().bgcol.clone();
-                //let tess = surface.data().tess.as_ref().unwrap();
                 //
-                surface.pipeline_builder().pipeline(
-                    &back_buffer,
-                    &PipelineState::default().set_clear_color(bgcol),
-                    |_, mut shd_gate| {
-                        shd_gate.shade(&program, |_, mut rdr_gate| {
-                            rdr_gate.render(&RenderState::default(), |mut tess_gate| {
-                                //tess_gate.render(tess);
-                            });
-                        });
-                    }
-                );
-                surface.swap_buffers();
+                //
             }
             _ => ()
         }

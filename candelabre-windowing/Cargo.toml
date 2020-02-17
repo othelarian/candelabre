@@ -9,10 +9,10 @@ edition = "2018"
 candelabre-core = {path = "../candelabre-core"}
 
 gl = "0.14.0"
-glutin = "0.22.0"
+glutin = "0.23.0"
 
-[dependencies.luminance]
+#[dependencies.luminance]
 #version = "0.38.0"
-git = "https://github.com/othelarian/luminance-rs.git"
-branch = "multiwin"
-features = ["multi-contexts"]
+#git = "https://github.com/othelarian/luminance-rs.git"
+#branch = "multiwin"
+#features = ["multi-contexts"]

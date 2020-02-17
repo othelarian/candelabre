@@ -2,7 +2,15 @@
 //! 
 //! This crate serve as a base layer for candelabre windowing and widgets
 //! crates, and provide them some useful tools to interact in a safer way with
-//! OpenGL context.
+//! OpenGL contex:
+//! 
+//! # `CandlRenderer`
+//! 
+//! This trait is used by candelabre-windowing surface and manager to handle
+//! OpenGL context safely. Why this trait? Simple: being able to use
+//! `CandlGraphics`, the renderer which come along with candelabre project, or
+//! make your own renderer if you think yours will be better (I think it's
+//! quite easy, try it).
 //! 
 //! # `CandlGraphics`
 //! 
@@ -13,36 +21,51 @@
 
 use gl;
 
+/// Renderer Trait
+pub trait CandlRenderer<R> {
+    /// init the renderer
+    fn init() -> R;
+
+    /// call for redraw the current OpenGL context
+    fn draw_frame(&self);
+}
+
 /// Structure to handle all direct OpenGL operations
 #[derive(Debug)]
 pub struct CandlGraphics {
-    //gl: gl::Gl,
     clear_color: [f32; 4]
     //
 }
 
-impl CandlGraphics {
-    /// build a new graphics from OpenGL
-    pub fn new() -> Self {
-        //
+impl CandlRenderer<CandlGraphics> for CandlGraphics {
+    fn init() -> CandlGraphics {
         //
         //
         Self {
-            //
             clear_color: [0.0, 0.0, 0.0, 1.0]
             //
         }
     }
 
-    /// draw in the back buffer
-    pub fn draw_frame(&self) {
+    fn draw_frame(&self) {
         //
+        //gl.draw_frame([1.0, 0.5, 0.7, 1.0]);
+        unsafe {
+            gl::ClearColor(
+                self.clear_color[0],
+                self.clear_color[1],
+                self.clear_color[2],
+                self.clear_color[3]
+            );
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            //
+            //
+        }
         //
     }
+}
 
-
-
-
+impl CandlGraphics {
     /// apply the clear color
     pub fn apply_clear_color(&mut self, new_color: [f32; 4]) {
         if self.clear_color != new_color {

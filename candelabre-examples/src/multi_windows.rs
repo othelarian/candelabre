@@ -5,7 +5,7 @@
 //! * 'A' to add a new window
 //! * 'SPACE' to generate randomly a new background color for the current window
 
-use candelabre_core::CandlGraphics;
+use candelabre_core::{CandlGraphics, CandlRenderer};
 use candelabre_windowing::{
     CandlCurrentWrapper, CandlDimension, CandlManager,
     CandlOptions, CandlSurface
@@ -40,7 +40,7 @@ fn main() {
         CandlDimension::Classic(800, 400),
         "first window",
         CandlOptions::default(),
-        CandlGraphics::new(),
+        CandlGraphics::init(),
         Some(WindowData::default())
     ).unwrap();
 

@@ -4,7 +4,7 @@
 //! randomly a new clear color (background color of the context), and 'A' to
 //! change the name of the window.
 
-use candelabre_core::CandlGraphics;
+use candelabre_core::{CandlGraphics, CandlRenderer};
 use candelabre_windowing::{
     CandlCurrentWrapper, CandlDimension,
     CandlOptions, CandlSurfaceBuilder, CandlWindow
@@ -45,7 +45,7 @@ fn main() {
         .dim(CandlDimension::Classic(800, 400))
         .title(TITLES_LIST[0])
         .options(CandlOptions::default())
-        .render(CandlGraphics::new())
+        .render(&CandlGraphics::init())
         .state(SurfaceState::default())
         .build(&el)
         .unwrap();
@@ -86,6 +86,7 @@ fn main() {
                 } => {
                     //
                     // TODO : change bg color
+                    //
                     //
                 }
                 WindowEvent::KeyboardInput {

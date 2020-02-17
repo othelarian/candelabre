@@ -59,7 +59,7 @@
 
 #![deny(missing_docs)]
 
-use candelabre_core::CandlGraphics;
+use candelabre_core::CandlRenderer;
 use gl;
 use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
@@ -273,15 +273,15 @@ pub trait CandlWindow {
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, D> {
+pub struct CandlSurfaceBuilder<'a, 'b, R: CandlRenderer<R>, D> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
-    render: Option<CandlGraphics>,
+    render: Option<&'b R>,
     state: Option<D>
 }
 
-impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
+impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -306,7 +306,7 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
     pub fn options(self, options: CandlOptions) -> Self { Self {options, ..self} }
 
     /// set render object
-    pub fn render(self, render: CandlGraphics) -> Self {
+    pub fn render(self, render: &'b R) -> Self {
         Self {render: Some(render), ..self}
     }
 
@@ -316,7 +316,7 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
     }
 
     /// try to build the surface
-    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<D>, CandlError> {
+    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<R, D>, CandlError> {
         match self.render {
             None =>
                 Err(CandlError::InternalError("You must specify the CandlGraphics!")),
@@ -353,13 +353,13 @@ impl<'a, 'b, D> CandlSurfaceBuilder<'a, D> {
 /// here to let the advanced user specify the data type and the initial datas
 /// associated with the surface.
 #[derive(Debug)]
-pub struct CandlSurface<D> {
+pub struct CandlSurface<'a, R: CandlRenderer<R>, D> {
     ctx: Option<CandlCurrentWrapper>,
-    render: CandlGraphics,
+    render: &'a R,
     state: Option<D>
 }
 
-impl<D> CandlWindow for CandlSurface<D> {
+impl<'a, R: CandlRenderer<R>, D> CandlWindow for CandlSurface<'a, R, D> {
     /// get the OpenGL context from the surface
     fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx.take().unwrap() }
 
@@ -377,7 +377,7 @@ impl<D> CandlWindow for CandlSurface<D> {
     }
 }
 
-impl<D> CandlElement<CandlSurface<D>> for CandlSurface<D> {
+impl<R: CandlRenderer<R>, D> CandlElement<CandlSurface<R, D>> for CandlSurface<R, D> {
     /// build method to make `CandlSurface` compatible with the `CandlManager`
     /// 
     /// WARNING: avoid at all cost the use of this method, prefer the builder
@@ -387,19 +387,19 @@ impl<D> CandlElement<CandlSurface<D>> for CandlSurface<D> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
-    ) -> Result<CandlSurface<D>, CandlError> {
-        <CandlSurface<D>>::window_builder(el, dim, title, options, CandlGraphics::new(), None)
+    ) -> Result<CandlSurface<R, D>, CandlError> {
+        <CandlSurface<R, D>>::window_builder(el, dim, title, options, &R::init(), None)
     }
 }
 
-impl<D> CandlSurface<D> {
+impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
     /// standard creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: CandlGraphics
+        render: &R
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
             el,
@@ -420,7 +420,7 @@ impl<D> CandlSurface<D> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: CandlGraphics,
+        render: &R,
         init_state: D
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
@@ -439,10 +439,10 @@ impl<D> CandlSurface<D> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: CandlGraphics,
+        render: &R,
         init_state: Option<D>
     ) -> Result<Self, CandlError> {
-        let ctx = <CandlSurface<D>>::init(el, dim, title, options)?;
+        let ctx = <CandlSurface<R, D>>::init(el, dim, title, options)?;
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
         Ok(CandlSurface {ctx, render, state: init_state})
     }
@@ -458,10 +458,10 @@ impl<D> CandlSurface<D> {
     }
 
     /// get the render object (immutable way)
-    pub fn render(&self) -> &CandlGraphics { &self.render }
+    pub fn render(&self) -> &R { &self.render }
 
     /// get the render object (mutable way)
-    pub fn render_mut(&mut self) -> &mut CandlGraphics { &mut self.render }
+    pub fn render_mut(&mut self) -> &mut R { &mut self.render }
 
     /// get the data as a immutable reference
     pub fn state(&self) -> Option<&D> { self.state.as_ref() }
@@ -573,11 +573,11 @@ impl<W: CandlWindow> CandlManager<W, ()> {
     }
 }
 
-impl<D, M> CandlManager<CandlSurface<D>, M> {
+impl<R: CandlRenderer<R>, D, M> CandlManager<CandlSurface<R, D>, M> {
     /// create a new window from a CandlSurfaceBuilder
     pub fn create_window_from_builder<T>(
         &mut self,
-        builder: CandlSurfaceBuilder<D>,
+        builder: CandlSurfaceBuilder<R, D>,
         el: &EventLoop<T>
     ) -> Result<WindowId, CandlError> {
         let surface = builder.build(el)?;
@@ -591,7 +591,7 @@ impl<D, M> CandlManager<CandlSurface<D>, M> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: CandlGraphics,
+        render: &R,
         init_data: Option<D>
     ) -> Result<WindowId, CandlError> {
         let surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;

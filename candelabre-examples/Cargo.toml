@@ -12,9 +12,9 @@ readme = "README.md"
 name = "simple_window"
 path = "src/simple_window.rs"
 
-[[bin]]
-name = "multi_windows"
-path = "src/multi_windows.rs"
+#[[bin]]
+#name = "multi_windows"
+#path = "src/multi_windows.rs"
 
 [[bin]]
 name = "luminance"

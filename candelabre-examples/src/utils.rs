@@ -16,6 +16,8 @@ pub const OGL_TRIANGLE: [Vertex; 3] = [
 
 */
 
+use candelabre_core::{CandlGraphics, CandlUpdate};
+
 use rand::Rng;
 
 pub const VS: &'static str = include_str!("../resources/simple-vs.glsl");
@@ -44,10 +46,29 @@ impl Default for SurfaceState {
 }
 
 #[allow(dead_code)]
+pub enum Message {
+    NewBgColor,
+    IncValue
+    //
+}
+
+#[allow(dead_code)]
+impl CandlUpdate<Message, CandlGraphics> for SurfaceState {
+    fn update(&mut self, message: Message, graphics: &mut CandlGraphics) {
+        match message {
+            Message::NewBgColor =>
+                graphics.apply_clear_color([new_nb(), new_nb(), new_nb(), 1.0]),
+            Message::IncValue =>
+                self.value = if self.value == 4 { 0 } else { self.value+1 }
+        }
+    }
+}
+
+#[allow(dead_code)]
 impl SurfaceState {
-    pub fn ask_draw(&mut self) { self.redraw = true; }
+    pub fn ask_redraw(&mut self) { self.redraw = true; }
     pub fn need_redraw(&self) -> bool { self.redraw }
     pub fn draw_asked(&mut self) { self.redraw = false; }
 
-    pub fn value(&mut self) -> &mut u32 { &mut self.value }
+    pub fn get_value(&self) -> u32 { self.value.clone() }
 }

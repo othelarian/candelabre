@@ -32,10 +32,10 @@ impl Default for WindowData {
 
 fn main() {
     let el = EventLoop::new();
-    let mut win_manager = CandlManager::new_with_data(0);
+    let mut win_manager = CandlManager::new_with_state(0);
 
     // first window
-    let win_id = win_manager.create_window_with_data(
+    let win_id = win_manager.create_window_with_state(
         &el,
         CandlDimension::Classic(800, 400),
         "first window",

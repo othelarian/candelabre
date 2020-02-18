@@ -47,19 +47,18 @@
 //! need a simple way to handle a window, maybe the `CandlWindow` is the right
 //! tool to do it.
 //! 
-//! ## About data in `CandlSurface` and `CandlManager`
+//! ## About state in `CandlSurface` and `CandlManager`
 //! 
-//! It's possible to add data into the `CandlSurface` and the `CandlManager`.
-//! The purpose of this data is to make this structures stateful, but there is
-//! some limitations. It's strongly discouraged to save OpenGL data, like the
-//! tess, the program, or the shader, in the data of the structures, this isn't
-//! the purpose of this data, and can lead to useless complexity due to the
-//! borrowing and onwership when it come to the render phase.
-//! 
+//! It's possible to add state into the `CandlSurface` and the `CandlManager`.
+//! The purpose of this state is to handle all the OpenGL data in a structure
+//! inside the surface, and enable a direct access between the renderer and the
+//! state of the surface. In the examples, it works a little bit like a FRP,
+//! with the state acting like a store to handle a model, pass to the renderer.
+//! Take a look.
 
 #![deny(missing_docs)]
 
-use candelabre_core::CandlRenderer;
+use candelabre_core::{CandlRenderer, CandlUpdate};
 use gl;
 use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
@@ -71,6 +70,7 @@ use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use std::collections::HashMap;
 use std::fmt;
+use std::marker::PhantomData;
 use std::os::raw::c_void;
 
 /// The error of Candelabre Windowing
@@ -194,6 +194,16 @@ pub enum CandlCurrentWrapper {
     NotCurrent(WindowedContext<NotCurrent>)
 }
 
+/// No state
+/// 
+/// This object has only one goal: to handle the case we don't want to have a
+/// state for the `CandlSurface`
+pub struct CandlNoState {}
+
+impl<R: CandlRenderer<R>> CandlUpdate<(), R> for CandlNoState {
+    fn update(&mut self, _: (), _: &mut R) {}
+}
+
 // =======================================================================
 // =======================================================================
 //               CandlWindow
@@ -273,15 +283,26 @@ pub trait CandlWindow {
 /// Surface builder
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
-pub struct CandlSurfaceBuilder<'a, 'b, R: CandlRenderer<R>, D> {
+pub struct CandlSurfaceBuilder<'a, R, D, M>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
-    render: Option<&'b R>,
-    state: Option<D>
+    render: Option<R>,
+    state: Option<D>,
+    message: PhantomData<M>
 }
 
-impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
+impl<R> CandlSurfaceBuilder<'_, R, CandlNoState, ()>
+where R: CandlRenderer<R> {
+    /// specify to not use state for the surface
+    pub fn no_state(self) -> Self {
+        Self {state: Some(CandlNoState {}), ..self}
+    }
+}
+
+impl<'a, R, D, M> CandlSurfaceBuilder<'a, R, D, M>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -292,7 +313,8 @@ impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
             title: "",
             options: CandlOptions::default(),
             render: None,
-            state: None
+            state: None,
+            message: PhantomData
         }
     }
 
@@ -306,7 +328,7 @@ impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
     pub fn options(self, options: CandlOptions) -> Self { Self {options, ..self} }
 
     /// set render object
-    pub fn render(self, render: &'b R) -> Self {
+    pub fn render(self, render: R) -> Self {
         Self {render: Some(render), ..self}
     }
 
@@ -316,18 +338,22 @@ impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
     }
 
     /// try to build the surface
-    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<R, D>, CandlError> {
-        match self.render {
-            None =>
-                Err(CandlError::InternalError("You must specify the CandlGraphics!")),
-            Some(render) =>
+    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<R, D, M>, CandlError> {
+        match (self.render, self.state) {
+            (None, None) =>
+                Err(CandlError::InternalError("You must specify the renderer and the state!")),
+            (None, Some(_)) =>
+                Err(CandlError::InternalError("You must specify the renderer!")),
+            (Some(_), None) =>
+                Err(CandlError::InternalError("You must specify the state! (use 'nostate'?)")),
+            (Some(render), Some(state)) =>
                 CandlSurface::window_builder(
                     el,
                     self.dim,
                     self.title,
                     self.options,
                     render,
-                    self.state
+                    state
                 )
         }
     }
@@ -345,21 +371,24 @@ impl<'a, 'b, R: CandlRenderer<R>, D> CandlSurfaceBuilder<'a, 'b, R, D> {
 /// OpenGL context, and some options. It sounds very simple, and in fact it is.
 /// Look for the example to see how to use it.
 /// 
-/// A data type can be associated to the surface, to make it stateful. It isn't
-/// mandatory, but useful.
+/// A state type can be associated to the surface, to make it stateful. It
+/// isn't mandatory, but useful.
 /// 
-/// The basic constructor automatically associate the type `()` to the data
-/// type of the surface, and a second constructor called `new_with_data()` is
-/// here to let the advanced user specify the data type and the initial datas
-/// associated with the surface.
+/// The basic constructor automatically associate the type `CandlNoState` to
+/// the state type of the surface, and a second constructor called
+/// `new_with_state()` is here to let the advanced user specify the state type
+/// and the initial state associated with the surface.
 #[derive(Debug)]
-pub struct CandlSurface<'a, R: CandlRenderer<R>, D> {
+pub struct CandlSurface<R, D, M>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     ctx: Option<CandlCurrentWrapper>,
-    render: &'a R,
-    state: Option<D>
+    render: R,
+    state: D,
+    message: PhantomData<M>
 }
 
-impl<'a, R: CandlRenderer<R>, D> CandlWindow for CandlSurface<'a, R, D> {
+impl<R, D, M> CandlWindow for CandlSurface<R, D, M>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     /// get the OpenGL context from the surface
     fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx.take().unwrap() }
 
@@ -377,7 +406,8 @@ impl<'a, R: CandlRenderer<R>, D> CandlWindow for CandlSurface<'a, R, D> {
     }
 }
 
-impl<R: CandlRenderer<R>, D> CandlElement<CandlSurface<R, D>> for CandlSurface<R, D> {
+impl<'a, R> CandlElement<CandlSurface<R, CandlNoState, ()>> for CandlSurface<R, CandlNoState, ()>
+where R: CandlRenderer<R> {
     /// build method to make `CandlSurface` compatible with the `CandlManager`
     /// 
     /// WARNING: avoid at all cost the use of this method, prefer the builder
@@ -387,19 +417,20 @@ impl<R: CandlRenderer<R>, D> CandlElement<CandlSurface<R, D>> for CandlSurface<R
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
-    ) -> Result<CandlSurface<R, D>, CandlError> {
-        <CandlSurface<R, D>>::window_builder(el, dim, title, options, &R::init(), None)
+    ) -> Result<CandlSurface<R, CandlNoState, ()>, CandlError> {
+        <CandlSurface<R, CandlNoState, ()>>::window_builder(el, dim, title, options, R::init(), CandlNoState {})
     }
 }
 
-impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
+impl<'a, R> CandlSurface<R, CandlNoState, ()>
+where R: CandlRenderer<R> {
     /// standard creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: &R
+        render: R
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
             el,
@@ -407,20 +438,23 @@ impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
             title,
             options,
             render,
-            None
+            CandlNoState {}
         )
     }
+}
 
-    /// constructor with data
+impl<'a, R, D, M> CandlSurface<R, D, M>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+    /// constructor with state
     ///
-    /// This constructor can be used to associate a data type to the window.
-    /// The data type must be specified.
-    pub fn new_with_data<T>(
+    /// This constructor can be used to associate a state type to the window.
+    /// The state type must be specified.
+    pub fn new_with_state<T>(
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: &R,
+        render: R,
         init_state: D
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
@@ -429,7 +463,7 @@ impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
             title,
             options,
             render,
-            Some(init_state)
+            init_state
         )
     }
 
@@ -439,12 +473,12 @@ impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: &R,
-        init_state: Option<D>
+        render: R,
+        init_state: D
     ) -> Result<Self, CandlError> {
-        let ctx = <CandlSurface<R, D>>::init(el, dim, title, options)?;
+        let ctx = <CandlSurface<R, D, M>>::init(el, dim, title, options)?;
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
-        Ok(CandlSurface {ctx, render, state: init_state})
+        Ok(CandlSurface {ctx, render, state: init_state, message: PhantomData})
     }
 
     /// change the title of the window
@@ -463,11 +497,16 @@ impl<'a, R: CandlRenderer<R>, D> CandlSurface<R, D> {
     /// get the render object (mutable way)
     pub fn render_mut(&mut self) -> &mut R { &mut self.render }
 
-    /// get the data as a immutable reference
-    pub fn state(&self) -> Option<&D> { self.state.as_ref() }
+    /// get the state as a immutable reference
+    pub fn state(&self) -> &D { &self.state }
 
-    /// get the data as a mutable reference
-    pub fn state_mut(&mut self) -> Option<&mut D> { self.state.as_mut() }
+    /// get the state as a mutable reference
+    pub fn state_mut(&mut self) -> &mut D { &mut self.state }
+
+    /// call the update method of the state (mandatory by CandlUpdate trait)
+    pub fn update(&mut self, message: M) {
+        self.state.update(message, &mut self.render);
+    }
 
     /// requesting redraw for the window
     pub fn request_redraw(&mut self) {
@@ -559,59 +598,60 @@ pub trait CandlElement<W: CandlWindow> {
 /// Check the
 /// [candelabre examples](https://github.com/othelarian/candelabre/tree/master/candelabre-examples)
 /// to see it in action.
-pub struct CandlManager<W: CandlWindow, M> {
+pub struct CandlManager<W: CandlWindow, S> {
 //pub struct CandlManager<D, M> {
     current: Option<WindowId>,
     surfaces: HashMap<WindowId, Option<W>>,
-    data: M
+    state: S
 }
 
 impl<W: CandlWindow> CandlManager<W, ()> {
     /// most default constructor for the manager
     pub fn new() -> Self {
-        CandlManager { current: None, surfaces: HashMap::default(), data: () }
+        CandlManager { current: None, surfaces: HashMap::default(), state: () }
     }
 }
 
-impl<R: CandlRenderer<R>, D, M> CandlManager<CandlSurface<R, D>, M> {
+impl<R, D, M, S> CandlManager<CandlSurface<R, D, M>, S>
+where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     /// create a new window from a CandlSurfaceBuilder
     pub fn create_window_from_builder<T>(
         &mut self,
-        builder: CandlSurfaceBuilder<R, D>,
+        builder: CandlSurfaceBuilder<R, D, M>,
         el: &EventLoop<T>
     ) -> Result<WindowId, CandlError> {
         let surface = builder.build(el)?;
         self.add_window(surface)
     }
 
-    /// create a new window with surface associated data type
-    pub fn create_window_with_data<T>(
+    /// create a new window with surface associated state type
+    pub fn create_window_with_state<T>(
         &mut self,
         el: &EventLoop<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: &R,
-        init_data: Option<D>
+        render: R,
+        init_state: D
     ) -> Result<WindowId, CandlError> {
-        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_data)?;
+        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_state)?;
         self.add_window(surface)
     }
 }
 
-impl<W: CandlWindow, M> CandlManager<W, M> {
+impl<W: CandlWindow, S> CandlManager<W, S> {
     /// create a new window, tracked by the manager
     /// 
     /// For internal reason, it isn't possible to add a `CandlSurface` manually
     /// created to the manager, it's mandatory to use the `create_window()`
     /// method instead.
     /// 
-    /// This method is the most basic one, creating a surface with no data
+    /// This method is the most basic one, creating a surface with no state
     /// associated.
     /// 
     /// WARNING : the first surface created with the manager decide of all the
-    /// surfaces data type of the manager, it isn't in the scope of this lib to
-    /// handle the complexity of multiple data type across an hashmap of
+    /// surfaces state type of the manager, it isn't in the scope of this lib to
+    /// handle the complexity of multiple state type across an hashmap of
     /// surfaces.
     pub fn create_window<T, E: CandlElement<W>>(
         &mut self,
@@ -624,12 +664,12 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
         self.add_window(surface)
     }
 
-    /// constructor for the manager with data type link to it
-    pub fn new_with_data(init_data: M) -> Self {
+    /// constructor for the manager with state type link to it
+    pub fn new_with_state(init_state: S) -> Self {
         CandlManager {
             current: None,
             surfaces: HashMap::default(),
-            data: init_data
+            state: init_state
         }
     }
 
@@ -776,9 +816,9 @@ impl<W: CandlWindow, M> CandlManager<W, M> {
         }
     }
 
-    /// get the data from the manager as an immutable reference
-    pub fn data(&self) -> &M { &self.data }
+    /// get the state from the manager as an immutable reference
+    pub fn state(&self) -> &S { &self.state }
 
-    /// get the data from the manager as a mutable reference
-    pub fn data_mut(&mut self) -> &mut M { &mut self.data }
+    /// get the state from the manager as a mutable reference
+    pub fn state_mut(&mut self) -> &mut S { &mut self.state }
 }

@@ -15,7 +15,7 @@ use glutin::event::{
 use glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
-use utils::SurfaceState;
+use utils::{Message, SurfaceState};
 /*
 use utils::{
     FS, OGL_TRIANGLE, VS,
@@ -45,7 +45,7 @@ fn main() {
         .dim(CandlDimension::Classic(800, 400))
         .title(TITLES_LIST[0])
         .options(CandlOptions::default())
-        .render(&CandlGraphics::init())
+        .render(CandlGraphics::init())
         .state(SurfaceState::default())
         .build(&el)
         .unwrap();
@@ -80,39 +80,27 @@ fn main() {
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput {
                         state: ElementState::Released,
-                        virtual_keycode: Some(VirtualKeyCode::Space),
+                        virtual_keycode: Some(keycode),
                         ..
                     }, ..
-                } => {
-                    //
-                    // TODO : change bg color
-                    //
-                    //
-                }
-                WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state: ElementState::Released,
-                        virtual_keycode: Some(VirtualKeyCode::A),
-                        ..
-                    }, ..
-                } => {
-                    let value = {
-                        let state = surface.state_mut().unwrap();
-                        let value = state.value();
-                        *value = if value == &4 { 0 } else { *value+1 };
-                        value.clone()
-                    };
-                    surface.title(TITLES_LIST[value as usize]);
+                } => match keycode {
+                    VirtualKeyCode::Space => {
+                        surface.update(Message::NewBgColor);
+                        surface.state_mut().ask_redraw();
+                    }
+                    VirtualKeyCode::A => {
+                        surface.update(Message::IncValue);
+                        surface.title(TITLES_LIST[surface.state().get_value() as usize]);
+                    }
+                    _ => ()
                 }
                 _ => ()
             }
             Event::MainEventsCleared => {
-                /*
                 if surface.state().need_redraw() {
                     surface.request_redraw();
                     surface.state_mut().draw_asked();
                 }
-                */
             }
             Event::RedrawRequested(_) => {
                 //

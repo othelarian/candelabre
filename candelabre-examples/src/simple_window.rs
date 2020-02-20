@@ -6,8 +6,7 @@
 
 use candelabre_core::{CandlGraphics, CandlRenderer};
 use candelabre_windowing::{
-    CandlCurrentWrapper, CandlDimension,
-    CandlOptions, CandlSurfaceBuilder, CandlWindow
+    CandlDimension, CandlOptions, CandlSurfaceBuilder, CandlWindow
 };
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
@@ -61,14 +60,11 @@ fn main() {
     */
 
     el.run(move |evt, _, ctrl_flow| {
+        *ctrl_flow = ControlFlow::Wait;
         match evt {
             Event::LoopDestroyed => return,
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::Resized(physical_size) => {
-                    if let CandlCurrentWrapper::PossiblyCurrent(ctx) = surface.ctx_ref() {
-                        ctx.resize(physical_size)
-                    }
-                }
+                WindowEvent::Resized(physical_size) => surface.resize(physical_size),
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
                     input: KeyboardInput {

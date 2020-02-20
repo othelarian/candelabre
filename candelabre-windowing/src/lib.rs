@@ -65,7 +65,7 @@ use glutin::{
     PossiblyCurrent, WindowedContext
 };
 use glutin::{ContextError, CreationError};
-use glutin::dpi::LogicalSize;
+use glutin::dpi::{LogicalSize, PhysicalSize};
 use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use std::collections::HashMap;
@@ -144,7 +144,10 @@ pub enum CursorMode {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CandlOptions {
     cursor_mode: CursorMode,
-    samples: Option<u32>
+    decorations: bool,
+    samples: Option<u32>,
+    transparent: bool,
+    vsync: bool
 }
 
 impl Default for CandlOptions {
@@ -154,7 +157,10 @@ impl Default for CandlOptions {
     fn default() -> Self {
         CandlOptions {
             cursor_mode: CursorMode::Visible,
-            samples: None
+            decorations: true,
+            samples: None,
+            transparent: false,
+            vsync: false
         }
     }
 }
@@ -168,6 +174,14 @@ impl CandlOptions {
     /// get the cursor current visiblity
     pub fn cursor_mode(&self) -> CursorMode { self.cursor_mode }
 
+    /// set if the window use decoration
+    pub fn set_decorations(self, decorations: bool) -> Self {
+        CandlOptions { decorations, ..self }
+    }
+
+    /// get the window current decoration status (default true)
+    pub fn decorations(&self) -> bool { self.decorations }
+
     /// choose the number of samples for multisampling
     pub fn set_samples<S: Into<Option<u32>>>(self, samples: S) -> Self {
         CandlOptions { samples: samples.into(), ..self }
@@ -175,6 +189,22 @@ impl CandlOptions {
 
     /// get the number of samples for multisampling
     pub fn samples(&self) -> Option<u32> { self.samples }
+
+    /// set the window transparency
+    pub fn set_transparent(self, transparent: bool) -> Self {
+        CandlOptions { transparent, ..self }
+    }
+
+    /// get if the window can be transparent (default false)
+    pub fn transparent(&self) -> bool { self.transparent }
+
+    /// set the vsync (false by default)
+    pub fn set_vsync(self, vsync: bool) -> Self {
+        CandlOptions { vsync, ..self }
+    }
+
+    /// get actual vsync configuration
+    pub fn vsync(&self) -> bool { self.vsync }
 }
 
 /// Tracking the context status
@@ -222,7 +252,10 @@ pub trait CandlWindow {
         title: &str,
         options: CandlOptions
     ) -> Result<WindowedContext<PossiblyCurrent>, CandlError> where T: 'static {
-        let win_builder = WindowBuilder::new().with_title(title);
+        let win_builder = WindowBuilder::new()
+            .with_title(title)
+            .with_transparent(options.transparent())
+            .with_decorations(options.decorations());
         let win_builder = match dim {
             CandlDimension::Classic(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h)),
@@ -249,6 +282,7 @@ pub trait CandlWindow {
         let ctx = ContextBuilder::new()
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .with_gl_profile(GlProfile::Core)
+            .with_vsync(options.vsync())
             .with_multisampling(options.samples().unwrap_or(0) as u16)
             .with_double_buffer(Some(true))
             .build_windowed(win_builder, &el)?;
@@ -269,6 +303,9 @@ pub trait CandlWindow {
 
     /// change the OpenGL context
     fn set_ctx(&mut self, nctx: CandlCurrentWrapper);
+
+    /// handle resize event
+    fn resize(&mut self, nsize: PhysicalSize<u32>);
 
     /// swap the buffer
     fn swap_buffers(&mut self);
@@ -402,6 +439,13 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     fn swap_buffers(&mut self) {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = self.ctx.as_ref().unwrap() {
             ctx.swap_buffers().unwrap();
+        }
+    }
+
+    /// handle resize event
+    fn resize(&mut self, nsize: PhysicalSize<u32>) {
+        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx_ref() {
+            ctx.resize(nsize);
         }
     }
 }

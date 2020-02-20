@@ -9,6 +9,7 @@ use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
 use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::dpi::PhysicalSize;
 use glutin::window::WindowId;
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
@@ -45,6 +46,12 @@ impl CandlWindow for LumSurface {
     fn swap_buffers(&mut self) {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = self.ctx.as_ref().unwrap() {
             ctx.swap_buffers().unwrap();
+        }
+    }
+
+    fn resize(&mut self, nsize: PhysicalSize<u32>) {
+        if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx_ref() {
+            ctx.resize(nsize);
         }
     }
 }
@@ -150,13 +157,8 @@ fn main() {
         match evt {
             Event::LoopDestroyed => return,
             Event::WindowEvent {event, window_id} => match event {
-                WindowEvent::Resized(physical_size) => {
-                    let surface = win_manager.get_current(window_id).unwrap();
-                    match &surface.ctx_ref() {
-                        CandlCurrentWrapper::PossiblyCurrent(ctx) => ctx.resize(physical_size),
-                        CandlCurrentWrapper::NotCurrent(_) => panic!("Error with OpenGL")
-                    }
-                }
+                WindowEvent::Resized(physical_size) =>
+                    win_manager.get_current(window_id).unwrap().resize(physical_size),
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
                     input: KeyboardInput {

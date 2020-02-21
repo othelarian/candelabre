@@ -36,6 +36,9 @@ pub trait CandlRenderer<R> {
     /// init the renderer
     fn init() -> R;
 
+    /// call from `CandlSurface` after the gl initialization
+    fn finalize(&mut self);
+
     /// call for redraw the current OpenGL context
     fn draw_frame(&self);
 }
@@ -73,6 +76,8 @@ impl CandlRenderer<CandlGraphics> for CandlGraphics {
             //
         }
     }
+
+    fn finalize(&mut self) {}
 
     fn draw_frame(&self) {
         //

@@ -517,11 +517,12 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
-        render: R,
+        mut render: R,
         init_state: D
     ) -> Result<Self, CandlError> {
         let ctx = <CandlSurface<R, D, M>>::init(el, dim, title, options)?;
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
+        render.finalize();
         Ok(CandlSurface {ctx, render, state: init_state, message: PhantomData})
     }
 

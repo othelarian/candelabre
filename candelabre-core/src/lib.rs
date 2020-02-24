@@ -39,6 +39,12 @@ pub trait CandlRenderer<R> {
     /// call from `CandlSurface` after the gl initialization
     fn finalize(&mut self);
 
+    /// set the scale factor when it changed
+    fn set_scale_factor(&mut self, scale_factor: f64);
+
+    /// set the size of the window / surface holding the OpenGL context
+    fn set_size(&mut self, nsize: (u32, u32));
+
     /// call for redraw the current OpenGL context
     fn draw_frame(&self);
 }
@@ -63,21 +69,29 @@ pub trait CandlRenderer<R> {
 /// for candelabre-widget.
 #[derive(Debug)]
 pub struct CandlGraphics {
-    clear_color: [f32; 4]
+    clear_color: [f32; 4],
+    size: (u32, u32),
+    scale_factor: f64
     //
 }
 
 impl CandlRenderer<CandlGraphics> for CandlGraphics {
     fn init() -> CandlGraphics {
-        //
-        //
         Self {
-            clear_color: [0.0, 0.0, 0.0, 1.0]
+            clear_color: [0.0, 0.0, 0.0, 1.0],
+            size: (0, 0),
+            scale_factor: 0.0
             //
         }
     }
 
     fn finalize(&mut self) {}
+
+    fn set_scale_factor(&mut self, scale_factor: f64) {
+        self.scale_factor = scale_factor;
+    }
+
+    fn set_size(&mut self, nsize: (u32, u32)) { self.size = nsize; }
 
     fn draw_frame(&self) {
         //

@@ -20,7 +20,9 @@ use candelabre_core::{CandlGraphics, CandlUpdate};
 
 use rand::Rng;
 
+#[allow(dead_code)]
 pub const VS: &'static str = include_str!("../resources/simple-vs.glsl");
+#[allow(dead_code)]
 pub const FS: &'static str = include_str!("../resources/simple-fs.glsl");
 
 #[allow(dead_code)]

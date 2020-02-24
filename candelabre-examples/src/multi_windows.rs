@@ -7,8 +7,8 @@
 
 use candelabre_core::{CandlGraphics, CandlRenderer};
 use candelabre_windowing::{
-    CandlCurrentWrapper, CandlDimension, CandlManager,
-    CandlOptions, CandlSurface
+    CandlDimension, CandlManager, CandlOptions,
+    CandlSurface, CandlWindow
 };
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
@@ -16,18 +16,23 @@ use glutin::event::{
 use glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
-//use utils::{FS, OGL_TRIANGLE, Semantics, VS};
-use utils::{FS, VS};
+use utils::{SurfaceState, Message};
 
-struct WindowData {
-    pub redraw: bool,
-    pub bgcol: [f32; 4]
-}
+type Surface = CandlSurface<CandlGraphics, SurfaceState, Message>;
 
-impl Default for WindowData {
-    fn default() -> Self {
-        WindowData { redraw: false, bgcol: [0.0, 0.0, 0.0, 1.0] }
-    }
+fn add_win(
+    manager: &mut CandlManager<Surface, u32>,
+    el: &EventLoop<()>,
+    title: &str
+) {
+    manager.create_window_with_state(
+        &el,
+        CandlDimension::Classic(800, 400),
+        title,
+        CandlOptions::default(),
+        CandlGraphics::init(),
+        SurfaceState::default()
+    ).unwrap();
 }
 
 fn main() {
@@ -35,14 +40,7 @@ fn main() {
     let mut win_manager = CandlManager::new_with_state(0);
 
     // first window
-    let win_id = win_manager.create_window_with_state(
-        &el,
-        CandlDimension::Classic(800, 400),
-        "first window",
-        CandlOptions::default(),
-        CandlGraphics::init(),
-        Some(WindowData::default())
-    ).unwrap();
+    add_win(&mut win_manager, &el, "first window");
 
     //
     //
@@ -54,11 +52,8 @@ fn main() {
         match evt {
             Event::LoopDestroyed => return,
             Event::WindowEvent {event, window_id} => match event {
-                WindowEvent::Resized(physical_size) => {
-                    //
-                    // TODO : resize the current window
-                    //
-                }
+                WindowEvent::Resized(physical_size) =>
+                    win_manager.get_current(window_id).unwrap().resize(physical_size),
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
                     input: KeyboardInput {
@@ -96,7 +91,7 @@ fn main() {
                 // TODO : mark the window who need a redraw
                 //
             }
-            Event::RedrawRequested(win_id) => {
+            Event::RedrawRequested(_win_id) => {
                 //let surface = win_manager.get_current(win_id.clone()).unwrap();
                 //
                 //

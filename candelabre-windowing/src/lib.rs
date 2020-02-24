@@ -446,6 +446,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     fn resize(&mut self, nsize: PhysicalSize<u32>) {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx_ref() {
             ctx.resize(nsize);
+            self.render.set_size((nsize.width, nsize.height));
         }
     }
 }
@@ -521,6 +522,9 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
         init_state: D
     ) -> Result<Self, CandlError> {
         let ctx = <CandlSurface<R, D, M>>::init(el, dim, title, options)?;
+        render.set_scale_factor(ctx.window().scale_factor());
+        let ipsize = ctx.window().inner_size();
+        render.set_size((ipsize.width, ipsize.height));
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
         render.finalize();
         Ok(CandlSurface {ctx, render, state: init_state, message: PhantomData})

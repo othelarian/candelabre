@@ -4,7 +4,9 @@
 //! randomly a new clear color (background color of the context), and 'A' to
 //! change the name of the window.
 
-use candelabre_core::{CandlGraphics, CandlRenderer};
+use candelabre_core::{
+    CandlGraphics, CandlRenderer, CandlShaderVariant
+};
 use candelabre_windowing::{
     CandlDimension, CandlOptions, CandlSurfaceBuilder, CandlWindow
 };
@@ -14,7 +16,7 @@ use glutin::event::{
 use glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
-use utils::{Message, SurfaceState};
+use utils::{FS, Message, SurfaceState, VS};
 /*
 use utils::{
     FS, OGL_TRIANGLE, VS,
@@ -40,11 +42,26 @@ fn main() {
         .ignore_warnings();
     */
 
+    let mut graphics = CandlGraphics::init();
+    let vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
+    let fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
+    let program = graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
+    //
+    fn trya() {
+        //
+        &graphics.use_program(program);
+        //
+        println!("eeeeeee");
+        //
+    }
+    //
+    graphics.set_draw_fun(trya);
+
     let mut surface = CandlSurfaceBuilder::new()
         .dim(CandlDimension::Classic(800, 400))
         .title(TITLES_LIST[0])
         .options(CandlOptions::default())
-        .render(CandlGraphics::init())
+        .render(graphics)
         .state(SurfaceState::default())
         .build(&el)
         .unwrap();
@@ -55,8 +72,6 @@ fn main() {
         .set_mode(Mode::Triangle)
         .build()
         .unwrap();
-
-    surface.rdr_data_mut().update(tess);
     */
 
     el.run(move |evt, _, ctrl_flow| {

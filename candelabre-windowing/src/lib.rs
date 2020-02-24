@@ -566,45 +566,10 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
         }
     }
 
-    /*
-    //
-    // TODO : do something with this
-    //
-    /// get the back buffer of the surface
-    pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, CandlError> {
-        match &self.ctx {
-            CandlCurrentWrapper::PossiblyCurrent(ctx) => {
-                let (w, h) = ctx.window().inner_size().into();
-                Ok(Framebuffer::back_buffer(self, [w, h]))
-            }
-            CandlCurrentWrapper::NotCurrent(_) =>
-                Err(CandlError::InternalError("using back buffer of not current OpenGL context"))
-        }
-    }
-    */
-
     /// draw on the surface
     pub fn draw(&mut self) {
         //
         self.render.draw_frame();
-        //
-        //(self.render_fn)();
-        //
-        //let back_buffer = self.back_buffer().unwrap();
-        //let rdr_data = self.rdr_data();
-        //
-        /*
-        self.pipeline_builder().pipeline(
-            &back_buffer,
-            //
-            // TODO : integrate the pipelineState inside the surface
-            //
-            &PipelineState::default(),
-            //
-            c
-            //
-        );
-        */
         //
         self.swap_buffers();
     }

@@ -45,6 +45,15 @@ pub trait CandlRenderer<R> {
 
     /// call for redraw the current OpenGL context
     fn draw_frame(&self);
+
+    /// when a window is resize, the renderer must follow
+    fn resize(&mut self, nsize: (u32, u32), scale_factor: f64) {
+        self.set_size(nsize);
+        //
+        println!("sf: {}", scale_factor);
+        //
+        self.set_scale_factor(scale_factor);
+    }
 }
 
 // =======================================================================

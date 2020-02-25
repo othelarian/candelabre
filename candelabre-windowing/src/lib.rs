@@ -446,7 +446,8 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     fn resize(&mut self, nsize: PhysicalSize<u32>) {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx_ref() {
             ctx.resize(nsize);
-            self.render.set_size((nsize.width, nsize.height));
+            let sf = ctx.window().scale_factor();
+            self.render.resize((nsize.width, nsize.height), sf);
         }
     }
 }

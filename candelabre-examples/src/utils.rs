@@ -16,7 +16,7 @@ pub const OGL_TRIANGLE: [Vertex; 3] = [
 
 */
 
-use candelabre_core::{CandlGraphics, CandlUpdate};
+use candelabre_core::{CandlGraphicsDrawer, CandlUpdate};
 
 use rand::Rng;
 
@@ -34,32 +34,26 @@ pub fn new_nb() -> f32 {
 pub struct SurfaceState {
     redraw: bool,
     value: u32,
-    bgcol: [f32; 4]
 }
 
 impl Default for SurfaceState {
     fn default() -> Self {
         Self {
             redraw: false,
-            value: 0,
-            bgcol: [0.0, 0.0, 0.0, 1.0]
+            value: 0
         }
     }
 }
 
 #[allow(dead_code)]
 pub enum Message {
-    NewBgColor,
     IncValue
     //
 }
 
-#[allow(dead_code)]
-impl CandlUpdate<Message, CandlGraphics> for SurfaceState {
-    fn update(&mut self, message: Message, graphics: &mut CandlGraphics) {
+impl CandlUpdate<Message> for SurfaceState {
+    fn update(&mut self, message: Message) {
         match message {
-            Message::NewBgColor =>
-                graphics.apply_clear_color([new_nb(), new_nb(), new_nb(), 1.0]),
             Message::IncValue =>
                 self.value = if self.value == 4 { 0 } else { self.value+1 }
         }
@@ -73,4 +67,14 @@ impl SurfaceState {
     pub fn draw_asked(&mut self) { self.redraw = false; }
 
     pub fn get_value(&self) -> u32 { self.value.clone() }
+}
+
+#[allow(dead_code)]
+pub struct SurfaceDrawer;
+
+impl CandlGraphicsDrawer<SurfaceState, Message, ()> for SurfaceDrawer {
+    fn execute(&self, _: Option<&SurfaceState>, _: Option<&()>) {
+        //
+        //
+    }
 }

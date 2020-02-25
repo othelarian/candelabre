@@ -230,8 +230,8 @@ pub enum CandlCurrentWrapper {
 /// state for the `CandlSurface`
 pub struct CandlNoState {}
 
-impl<R: CandlRenderer<R>> CandlUpdate<(), R> for CandlNoState {
-    fn update(&mut self, _: (), _: &mut R) {}
+impl CandlUpdate<()> for CandlNoState {
+    fn update(&mut self, _: ()) {}
 }
 
 // =======================================================================
@@ -321,7 +321,7 @@ pub trait CandlWindow {
 /// 
 /// This builder help create a new `CandlSurface` in a more idiomatic way
 pub struct CandlSurfaceBuilder<'a, R, D, M>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     dim: CandlDimension,
     title: &'a str,
     options: CandlOptions,
@@ -331,7 +331,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
 }
 
 impl<R> CandlSurfaceBuilder<'_, R, CandlNoState, ()>
-where R: CandlRenderer<R> {
+where R: CandlRenderer<R, CandlNoState, ()> {
     /// specify to not use state for the surface
     pub fn no_state(self) -> Self {
         Self {state: Some(CandlNoState {}), ..self}
@@ -339,7 +339,7 @@ where R: CandlRenderer<R> {
 }
 
 impl<'a, R, D, M> CandlSurfaceBuilder<'a, R, D, M>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// builder constructor
     ///
     /// By default, the builder set the window dimension to Classic(800, 400)
@@ -417,7 +417,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
 /// and the initial state associated with the surface.
 #[derive(Debug)]
 pub struct CandlSurface<R, D, M>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     ctx: Option<CandlCurrentWrapper>,
     render: R,
     state: D,
@@ -425,7 +425,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
 }
 
 impl<R, D, M> CandlWindow for CandlSurface<R, D, M>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// get the OpenGL context from the surface
     fn ctx(&mut self) -> CandlCurrentWrapper { self.ctx.take().unwrap() }
 
@@ -446,14 +446,13 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     fn resize(&mut self, nsize: PhysicalSize<u32>) {
         if let CandlCurrentWrapper::PossiblyCurrent(ctx) = &self.ctx_ref() {
             ctx.resize(nsize);
-            let sf = ctx.window().scale_factor();
-            self.render.resize((nsize.width, nsize.height), sf);
+            self.render.set_size((nsize.width, nsize.height));
         }
     }
 }
 
 impl<'a, R> CandlElement<CandlSurface<R, CandlNoState, ()>> for CandlSurface<R, CandlNoState, ()>
-where R: CandlRenderer<R> {
+where R: CandlRenderer<R, CandlNoState, ()> {
     /// build method to make `CandlSurface` compatible with the `CandlManager`
     /// 
     /// WARNING: avoid at all cost the use of this method, prefer the builder
@@ -469,7 +468,7 @@ where R: CandlRenderer<R> {
 }
 
 impl<'a, R> CandlSurface<R, CandlNoState, ()>
-where R: CandlRenderer<R> {
+where R: CandlRenderer<R, CandlNoState, ()> {
     /// standard creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoop<T>,
@@ -490,7 +489,7 @@ where R: CandlRenderer<R> {
 }
 
 impl<'a, R, D, M> CandlSurface<R, D, M>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// constructor with state
     ///
     /// This constructor can be used to associate a state type to the window.
@@ -555,7 +554,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
 
     /// call the update method of the state (mandatory by CandlUpdate trait)
     pub fn update(&mut self, message: M) {
-        self.state.update(message, &mut self.render);
+        self.state.update(message);
     }
 
     /// requesting redraw for the window
@@ -570,7 +569,7 @@ where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
     /// draw on the surface
     pub fn draw(&mut self) {
         //
-        self.render.draw_frame();
+        self.render.draw_frame(&self.state);
         //
         self.swap_buffers();
     }
@@ -628,7 +627,7 @@ impl<W: CandlWindow> CandlManager<W, ()> {
 }
 
 impl<R, D, M, S> CandlManager<CandlSurface<R, D, M>, S>
-where R: CandlRenderer<R>, D: CandlUpdate<M, R> {
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// create a new window from a CandlSurfaceBuilder
     pub fn create_window_from_builder<T>(
         &mut self,

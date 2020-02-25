@@ -16,7 +16,7 @@ use glutin::event::{
 use glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
-use utils::{FS, Message, SurfaceState, VS};
+use utils::{FS, Message, new_nb, SurfaceState, SurfaceDrawer, VS};
 /*
 use utils::{
     FS, OGL_TRIANGLE, VS,
@@ -42,20 +42,13 @@ fn main() {
         .ignore_warnings();
     */
 
-    let mut graphics = CandlGraphics::init();
+    let mut graphics = CandlGraphics::<SurfaceDrawer, _, _, _>::init();
     let vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
     let fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
-    let program = graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
+    //let program =
+    graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
     //
-    fn trya() {
-        //
-        &graphics.use_program(program);
-        //
-        println!("eeeeeee");
-        //
-    }
     //
-    graphics.set_draw_fun(trya);
 
     let mut surface = CandlSurfaceBuilder::new()
         .dim(CandlDimension::Classic(800, 400))
@@ -96,7 +89,9 @@ fn main() {
                     }, ..
                 } => match keycode {
                     VirtualKeyCode::Space => {
-                        surface.update(Message::NewBgColor);
+                        //graphics.apply_clear_color([new_nb(), new_nb(), new_nb(), 1.0]);
+                        let bgcol = [new_nb(), new_nb(), new_nb(), 1.0];
+                        surface.render_mut().apply_clear_color(bgcol);
                         surface.state_mut().ask_redraw();
                     }
                     VirtualKeyCode::A => {

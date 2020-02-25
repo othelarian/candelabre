@@ -30,7 +30,7 @@
 /// 
 /// This trait must be used by any structure which want to fill the gap between
 /// a `CandlWindow` and OpenGL.
-pub trait CandlRenderer<R> {
+pub trait CandlRenderer<R, S: CandlUpdate<M>, M> {
     /// init the renderer
     fn init() -> R;
 
@@ -44,16 +44,15 @@ pub trait CandlRenderer<R> {
     fn set_size(&mut self, nsize: (u32, u32));
 
     /// call for redraw the current OpenGL context
-    fn draw_frame(&self);
+    fn draw_frame(&mut self, state: &S);
+}
 
-    /// when a window is resize, the renderer must follow
-    fn resize(&mut self, nsize: (u32, u32), scale_factor: f64) {
-        self.set_size(nsize);
-        //
-        println!("sf: {}", scale_factor);
-        //
-        self.set_scale_factor(scale_factor);
-    }
+/// State Trait
+/// 
+/// When a surface become stateful, there is a way to do it, and it goes with
+/// this trait. It's the bridge between the state and the renderer.
+pub trait CandlUpdate<M> {
+    fn update(&mut self, message: M);
 }
 
 // =======================================================================
@@ -65,6 +64,7 @@ pub trait CandlRenderer<R> {
 
 pub use self::candl_graphics::{
     CandlGraphics,
+    CandlGraphicsDrawer,
     CandlGraphicsError,
     CandlProgram,
     CandlShader,
@@ -75,7 +75,9 @@ mod candl_graphics {
     use super::CandlRenderer;
     use gl::{self, types::GLuint};
     use std::ffi::CString;
+    use std::marker::PhantomData;
     use std::ptr::null;
+    use super::CandlUpdate;
     
     /// candelabre shader type
     /// 
@@ -210,12 +212,27 @@ mod candl_graphics {
         ProgramError(&'static str)
     }
 
+    /// Draw function trait
+    /// 
+    /// There is several way to handle a redraw function, by using a closure is
+    /// the most common, but the harder to implement and, in my own opinion,
+    /// it's also the less readable. So instead of using a closure, candelabre
+    /// use a trait the user must implement and send to CandlGraphics. It's a
+    /// different way to approach the same problem, and it's only a choice of
+    /// the candelabre author, so feel free to ask about this choice, the 
+    /// dialog is open.
+    pub trait CandlGraphicsDrawer<S: CandlUpdate<M>, M, O> {
+        /// the only method needed is the draw_fun
+        fn execute(&self, state: Option<&S>, opts: Option<&O>);
+    }
+
     /// Candelabre Graphics
     /// 
     /// Structure to handle all direct OpenGL operations. It's the foundation stone
     /// for candelabre-widget.
     #[derive(Debug)]
-    pub struct CandlGraphics<F: Fn()> {
+    pub struct CandlGraphics<F, S, M, O>
+    where F: CandlGraphicsDrawer<S, M, O>, S: CandlUpdate<M> {
         clear_color: [f32; 4],
         size: (u32, u32),
         scale_factor: f64,
@@ -223,18 +240,25 @@ mod candl_graphics {
         shaders: Vec<CandlShader>,
         programs: Vec<CandlProgram>,
         //
-        draw_fun: Option<F>
+        draw_fun: Option<F>,
+        _state: PhantomData<S>,
+        _message: PhantomData<M>,
+        _opts: PhantomData<O>
     }
 
-    impl<F: Fn()> CandlRenderer<CandlGraphics<F>> for CandlGraphics<F> {
-        fn init() -> CandlGraphics<F> {
+    impl<F, S, M, O> CandlRenderer<CandlGraphics<F, S, M, O>, S, M> for CandlGraphics<F, S, M, O>
+    where F: CandlGraphicsDrawer<S, M, O>, S: CandlUpdate<M> {
+        fn init() -> CandlGraphics<F, S, M, O> {
             Self {
                 clear_color: [0.0, 0.0, 0.0, 1.0],
                 size: (0, 0),
                 scale_factor: 0.0,
                 shaders: vec!(),
                 programs: vec!(),
-                draw_fun: None
+                draw_fun: None,
+                _state: PhantomData,
+                _message: PhantomData,
+                _opts: PhantomData
             }
         }
 
@@ -246,7 +270,7 @@ mod candl_graphics {
 
         fn set_size(&mut self, nsize: (u32, u32)) { self.size = nsize; }
 
-        fn draw_frame(&self) {
+        fn draw_frame(&mut self, state: &S) {
             unsafe {
                 gl::ClearColor(
                     self.clear_color[0], self.clear_color[1],
@@ -255,12 +279,13 @@ mod candl_graphics {
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
             if let Some(fun) = &self.draw_fun {
-                (fun)();
+                fun.execute(Some(state), None);
             }
         }
     }
 
-    impl<F: Fn()> CandlGraphics<F> {
+    impl<F, S, M, O> CandlGraphics<F, S, M, O>
+    where F: CandlGraphicsDrawer<S, M, O>, S: CandlUpdate<M> {
         /// redefine the drawing closure
         pub fn set_draw_fun(&mut self, draw_fun: F) { self.draw_fun = Some(draw_fun); }
 
@@ -324,12 +349,4 @@ mod candl_graphics {
             self.clear_color = new_color;
         }
     }
-}
-
-/// State Trait
-/// 
-/// When a surface become stateful, there is a way to do it, and it goes with
-/// this trait. It's the bridge between the state and the renderer.
-pub trait CandlUpdate<M, R: CandlRenderer<R>> {
-    fn update(&mut self, message: M, renderer: &mut R);
 }

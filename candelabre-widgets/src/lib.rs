@@ -3,11 +3,17 @@
 //! 
 //! ???
 
-use candelabre_core::CandlRenderer;
+use candelabre_core::{CandlRenderer, CandlUpdate};
+
+pub struct SurfaceState();
+
+impl CandlUpdate<()> for SurfaceState {
+    fn update(&mut self, _: ()) {}
+}
 
 pub struct CandlRender {}
 
-impl CandlRenderer<CandlRender> for CandlRender {
+impl CandlRenderer<CandlRender, SurfaceState, ()> for CandlRender {
     fn init() -> CandlRender {
         //
         //
@@ -29,7 +35,7 @@ impl CandlRenderer<CandlRender> for CandlRender {
         //
     }
 
-    fn draw_frame(&self) {
+    fn draw_frame(&mut self, _state: &SurfaceState) {
         //
         //
     }

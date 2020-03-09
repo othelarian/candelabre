@@ -73,11 +73,11 @@ pub use self::candl_graphics::{
 
 mod candl_graphics {
     use super::CandlRenderer;
+    use super::CandlUpdate;
     use gl::{self, types::GLuint};
     use std::ffi::CString;
     use std::marker::PhantomData;
     use std::ptr::null;
-    use super::CandlUpdate;
     
     /// candelabre shader type
     /// 

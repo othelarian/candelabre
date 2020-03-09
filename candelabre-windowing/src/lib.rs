@@ -66,7 +66,7 @@ use glutin::{
 };
 use glutin::{ContextError, CreationError};
 use glutin::dpi::{LogicalSize, PhysicalSize};
-use glutin::event_loop::EventLoop;
+use glutin::event_loop::{EventLoop, EventLoopWindowTarget};
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use std::collections::HashMap;
 use std::fmt;
@@ -247,7 +247,7 @@ impl CandlUpdate<()> for CandlNoState {
 pub trait CandlWindow {
     /// code to init the basis of a window with an OpenGL context
     fn init<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
@@ -256,16 +256,21 @@ pub trait CandlWindow {
             .with_title(title)
             .with_transparent(options.transparent())
             .with_decorations(options.decorations());
+        //
+        //let r_el: &EventLoop<T> = &EventLoop::<T>::from(el);
+        //let r_el = EventLoop::<T>::deref(el);
+        //
         let win_builder = match dim {
             CandlDimension::Classic(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h)),
             CandlDimension::Fullscreen =>
                 win_builder.with_fullscreen(
                     Some(Fullscreen::Exclusive(
-                        el.primary_monitor()
+                        r_el.primary_monitor()
                             .video_modes()
                             .next()
                             .unwrap()
+                            .clone()
                     ))
                 ),
             CandlDimension::FullscreenSpecific(w, h) =>
@@ -375,7 +380,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     }
 
     /// try to build the surface
-    pub fn build<T>(self, el: &EventLoop<T>) -> Result<CandlSurface<R, D, M>, CandlError> {
+    pub fn build<T>(self, el: &EventLoopWindowTarget<T>) -> Result<CandlSurface<R, D, M>, CandlError> {
         match (self.render, self.state) {
             (None, None) =>
                 Err(CandlError::InternalError("You must specify the renderer and the state!")),
@@ -458,7 +463,7 @@ where R: CandlRenderer<R, CandlNoState, ()> {
     /// WARNING: avoid at all cost the use of this method, prefer the builder
     /// instead.
     fn build<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
@@ -471,7 +476,7 @@ impl<'a, R> CandlSurface<R, CandlNoState, ()>
 where R: CandlRenderer<R, CandlNoState, ()> {
     /// standard creation of a CandlSurface
     pub fn new<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -495,7 +500,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// This constructor can be used to associate a state type to the window.
     /// The state type must be specified.
     pub fn new_with_state<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -514,7 +519,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
 
     /// internal builder for the window
     fn window_builder<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -591,7 +596,7 @@ pub trait CandlElement<W: CandlWindow> {
     /// to use `CandlWindow` with `CandlManager` the type implementing this
     /// trait must implement the window_builder method
     fn build<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions) -> Result<W, CandlError>;
@@ -632,7 +637,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     pub fn create_window_from_builder<T>(
         &mut self,
         builder: CandlSurfaceBuilder<R, D, M>,
-        el: &EventLoop<T>
+        el: &EventLoopWindowTarget<T>
     ) -> Result<WindowId, CandlError> {
         let surface = builder.build(el)?;
         self.add_window(surface)
@@ -641,7 +646,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// create a new window with surface associated state type
     pub fn create_window_with_state<T>(
         &mut self,
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -669,7 +674,7 @@ impl<W: CandlWindow, S> CandlManager<W, S> {
     /// surfaces.
     pub fn create_window<T, E: CandlElement<W>>(
         &mut self,
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,

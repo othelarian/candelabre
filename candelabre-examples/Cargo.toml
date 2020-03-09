@@ -12,9 +12,9 @@ readme = "README.md"
 name = "luminance"
 path = "src/luminance.rs"
 
-[[bin]]
-name = "multi_windows"
-path = "src/multi_windows.rs"
+#[[bin]]
+#name = "multi_windows"
+#path = "src/multi_windows.rs"
 
 [[bin]]
 name = "simple_window"
@@ -28,7 +28,7 @@ path = "src/simple_window.rs"
 candelabre-core = { path = "../candelabre-core" }
 candelabre-windowing = { path = "../candelabre-windowing" }
 glutin = {version = "0.23.0", default-features = false}
-#luminance = "0.38.0"
+#luminance = "0.39.0"
 luminance-derive = "0.5.1"
 rand = "0.5.5"
 

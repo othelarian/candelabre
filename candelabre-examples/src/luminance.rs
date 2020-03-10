@@ -8,8 +8,9 @@ use candelabre_windowing::{
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
-use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::dpi::PhysicalSize;
+use glutin::monitor::VideoMode;
 use glutin::window::WindowId;
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
@@ -58,12 +59,13 @@ impl CandlWindow for LumSurface {
 
 impl CandlElement<LumSurface> for LumSurface {
     fn build<T>(
-        el: &EventLoop<T>,
+        el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
     ) -> Result<LumSurface, CandlError> {
-        let ctx = LumSurface::init(el, dim, title, options)?;
+        let ctx = LumSurface::init(el, video_mode, dim, title, options)?;
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
         //let gfx_state = Rc::new(RefCell::new(GraphicsState::new().unwrap()));
         let gfx_state = unsafe {
@@ -144,6 +146,7 @@ fn main() {
     for idx in 0..3 {
         let wid = &win_manager.create_window::<_, LumSurface>(
             &el,
+            el.primary_monitor().video_modes().next().unwrap(),
             CandlDimension::Classic(800, 400),
             &format!("test luminance #{}", idx+1),
             CandlOptions::default()

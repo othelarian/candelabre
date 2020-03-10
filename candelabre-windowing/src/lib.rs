@@ -66,8 +66,9 @@ use glutin::{
 };
 use glutin::{ContextError, CreationError};
 use glutin::dpi::{LogicalSize, PhysicalSize};
-use glutin::event_loop::{EventLoop, EventLoopWindowTarget};
-use glutin::window::{Fullscreen, WindowBuilder, WindowId};
+use glutin::event_loop::EventLoopWindowTarget;
+use glutin::monitor::VideoMode;
+use glutin::window::{Fullscreen, WindowBuilder, Window, WindowId};
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
@@ -145,6 +146,7 @@ pub enum CursorMode {
 pub struct CandlOptions {
     cursor_mode: CursorMode,
     decorations: bool,
+    on_top: bool,
     samples: Option<u32>,
     transparent: bool,
     vsync: bool
@@ -158,6 +160,7 @@ impl Default for CandlOptions {
         CandlOptions {
             cursor_mode: CursorMode::Visible,
             decorations: true,
+            on_top: false,
             samples: None,
             transparent: false,
             vsync: false
@@ -166,45 +169,53 @@ impl Default for CandlOptions {
 }
 
 impl CandlOptions {
-    /// choose the cursor visibility
-    pub fn set_cursor_mode(self, mode: CursorMode) -> Self {
-        CandlOptions { cursor_mode: mode, ..self }
-    }
-
     /// get the cursor current visiblity
     pub fn cursor_mode(&self) -> CursorMode { self.cursor_mode }
 
-    /// set if the window use decoration
-    pub fn set_decorations(self, decorations: bool) -> Self {
-        CandlOptions { decorations, ..self }
+    /// choose the cursor visibility
+    pub fn set_cursor_mode(self, cursor_mode: CursorMode) -> Self {
+        Self { cursor_mode, ..self }
     }
 
     /// get the window current decoration status (default true)
     pub fn decorations(&self) -> bool { self.decorations }
 
-    /// choose the number of samples for multisampling
-    pub fn set_samples<S: Into<Option<u32>>>(self, samples: S) -> Self {
-        CandlOptions { samples: samples.into(), ..self }
+    /// set if the window use decoration
+    pub fn set_decorations(self, decorations: bool) -> Self {
+        Self { decorations, ..self }
+    }
+
+    /// get if the window must be always on top, or not
+    pub fn on_top(&self) -> bool { self.on_top }
+
+    /// set if the window is always on top or not
+    pub fn set_on_top(self, on_top: bool) -> Self {
+        Self { on_top, ..self }
     }
 
     /// get the number of samples for multisampling
     pub fn samples(&self) -> Option<u32> { self.samples }
 
-    /// set the window transparency
-    pub fn set_transparent(self, transparent: bool) -> Self {
-        CandlOptions { transparent, ..self }
+    /// choose the number of samples for multisampling
+    pub fn set_samples<S: Into<Option<u32>>>(self, samples: S) -> Self {
+        Self { samples: samples.into(), ..self }
     }
 
     /// get if the window can be transparent (default false)
     pub fn transparent(&self) -> bool { self.transparent }
 
-    /// set the vsync (false by default)
-    pub fn set_vsync(self, vsync: bool) -> Self {
-        CandlOptions { vsync, ..self }
+    /// set the window transparency
+    pub fn set_transparent(self, transparent: bool) -> Self {
+        Self { transparent, ..self }
     }
 
     /// get actual vsync configuration
     pub fn vsync(&self) -> bool { self.vsync }
+
+    /// set the vsync (false by default)
+    pub fn set_vsync(self, vsync: bool) -> Self {
+        Self { vsync, ..self }
+    }
 }
 
 /// Tracking the context status
@@ -248,6 +259,7 @@ pub trait CandlWindow {
     /// code to init the basis of a window with an OpenGL context
     fn init<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
@@ -255,33 +267,19 @@ pub trait CandlWindow {
         let win_builder = WindowBuilder::new()
             .with_title(title)
             .with_transparent(options.transparent())
-            .with_decorations(options.decorations());
-        //
-        //let r_el: &EventLoop<T> = &EventLoop::<T>::from(el);
-        //let r_el = EventLoop::<T>::deref(el);
-        //
+            .with_decorations(options.decorations())
+            .with_always_on_top(options.on_top());
         let win_builder = match dim {
             CandlDimension::Classic(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h)),
             CandlDimension::Fullscreen =>
                 win_builder.with_fullscreen(
-                    Some(Fullscreen::Exclusive(
-                        r_el.primary_monitor()
-                            .video_modes()
-                            .next()
-                            .unwrap()
-                            .clone()
-                    ))
+                    Some(Fullscreen::Exclusive(video_mode))
                 ),
             CandlDimension::FullscreenSpecific(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h))
                     .with_fullscreen(
-                        Some(Fullscreen::Exclusive(
-                            el.primary_monitor()
-                                .video_modes()
-                                .next()
-                                .unwrap()
-                        ))
+                        Some(Fullscreen::Exclusive(video_mode))
                     )
         };
         let ctx = ContextBuilder::new()
@@ -332,6 +330,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     options: CandlOptions,
     render: Option<R>,
     state: Option<D>,
+    video_mode: Option<VideoMode>,
     message: PhantomData<M>
 }
 
@@ -356,6 +355,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
             options: CandlOptions::default(),
             render: None,
             state: None,
+            video_mode: None,
             message: PhantomData
         }
     }
@@ -379,18 +379,26 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
         Self {state: Some(init_state), ..self}
     }
 
+    /// set the video mode for the window (from the monitor handle)
+    pub fn video_mode(self, video_mode: VideoMode) -> Self {
+        Self {video_mode: Some(video_mode), ..self}
+    }
+
     /// try to build the surface
     pub fn build<T>(self, el: &EventLoopWindowTarget<T>) -> Result<CandlSurface<R, D, M>, CandlError> {
-        match (self.render, self.state) {
-            (None, None) =>
+        match (self.render, self.state, self.video_mode) {
+            (None, None, _) =>
                 Err(CandlError::InternalError("You must specify the renderer and the state!")),
-            (None, Some(_)) =>
+            (None, Some(_), _) =>
                 Err(CandlError::InternalError("You must specify the renderer!")),
-            (Some(_), None) =>
+            (Some(_), None, _) =>
                 Err(CandlError::InternalError("You must specify the state! (use 'nostate'?)")),
-            (Some(render), Some(state)) =>
+            (_, _, None) =>
+                Err(CandlError::InternalError("Please specify the video mode for the window")),
+            (Some(render), Some(state), Some(video_mode)) =>
                 CandlSurface::window_builder(
                     el,
+                    video_mode,
                     self.dim,
                     self.title,
                     self.options,
@@ -464,11 +472,14 @@ where R: CandlRenderer<R, CandlNoState, ()> {
     /// instead.
     fn build<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions
     ) -> Result<CandlSurface<R, CandlNoState, ()>, CandlError> {
-        <CandlSurface<R, CandlNoState, ()>>::window_builder(el, dim, title, options, R::init(), CandlNoState {})
+        <CandlSurface<R, CandlNoState, ()>>::window_builder(
+            el, video_mode, dim, title, options, R::init(), CandlNoState {}
+        )
     }
 }
 
@@ -477,6 +488,7 @@ where R: CandlRenderer<R, CandlNoState, ()> {
     /// standard creation of a CandlSurface
     pub fn new<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -484,6 +496,7 @@ where R: CandlRenderer<R, CandlNoState, ()> {
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
             el,
+            video_mode,
             dim,
             title,
             options,
@@ -501,6 +514,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// The state type must be specified.
     pub fn new_with_state<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
@@ -509,6 +523,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     ) -> Result<Self, CandlError> {
         CandlSurface::window_builder(
             el,
+            video_mode,
             dim,
             title,
             options,
@@ -520,13 +535,14 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     /// internal builder for the window
     fn window_builder<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
         mut render: R,
         init_state: D
     ) -> Result<Self, CandlError> {
-        let ctx = <CandlSurface<R, D, M>>::init(el, dim, title, options)?;
+        let ctx = <CandlSurface<R, D, M>>::init(el, video_mode, dim, title, options)?;
         render.set_scale_factor(ctx.window().scale_factor());
         let ipsize = ctx.window().inner_size();
         render.set_size((ipsize.width, ipsize.height));
@@ -580,6 +596,18 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     }
 }
 
+impl<R, D, M> CandlSurface<R, D, M>
+where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
+    /// get the window linked to the surface OpenGL context
+    pub fn get_window(&self) -> Result<&Window, CandlError> {
+        match self.ctx_ref() {
+            CandlCurrentWrapper::PossiblyCurrent(ctx) => Ok(ctx.window()),
+            CandlCurrentWrapper::NotCurrent(_) =>
+                Err(CandlError::InternalError("The context of this surface is not the current context"))
+        }
+    }
+}
+
 // =======================================================================
 // =======================================================================
 //               CandlManager
@@ -597,6 +625,7 @@ pub trait CandlElement<W: CandlWindow> {
     /// trait must implement the window_builder method
     fn build<T>(
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions) -> Result<W, CandlError>;
@@ -647,13 +676,14 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     pub fn create_window_with_state<T>(
         &mut self,
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
         render: R,
         init_state: D
     ) -> Result<WindowId, CandlError> {
-        let surface = CandlSurface::window_builder(el, dim, title, options, render, init_state)?;
+        let surface = CandlSurface::window_builder(el, video_mode, dim, title, options, render, init_state)?;
         self.add_window(surface)
     }
 }
@@ -675,11 +705,12 @@ impl<W: CandlWindow, S> CandlManager<W, S> {
     pub fn create_window<T, E: CandlElement<W>>(
         &mut self,
         el: &EventLoopWindowTarget<T>,
+        video_mode: VideoMode,
         dim: CandlDimension,
         title: &str,
         options: CandlOptions,
     ) -> Result<WindowId, CandlError> {
-        let surface = E::build(el, dim, title, options)?;
+        let surface = E::build(el, video_mode, dim, title, options)?;
         self.add_window(surface)
     }
 

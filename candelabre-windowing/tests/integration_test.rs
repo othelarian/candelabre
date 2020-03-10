@@ -32,6 +32,7 @@ fn create_window() -> Result<(), String> {
     let el = EventLoop::new();
     match <CandlSurface<CandlFakeGraphics, CandlNoState, ()>>::new(
         &el,
+        el.primary_monitor().video_modes().next().unwrap(),
         CandlDimension::Classic(800, 400),
         "test candelabre window",
         CandlOptions::default(),
@@ -63,6 +64,7 @@ fn create_window_with_state() -> Result<(), String> {
     let el = EventLoop::new();
     match CandlSurface::new_with_state(
         &el,
+        el.primary_monitor().video_modes().next().unwrap(),
         CandlDimension::Fullscreen,
         &String::from("test window with data"),
         CandlOptions::default(),
@@ -81,6 +83,7 @@ fn open_multi_windows() -> Result<(), String> {
     for win_idx in 0..3 {
         &win_manager.create_window::<_, CandlSurface<CandlFakeGraphics, CandlNoState, ()>>(
             &el,
+            el.primary_monitor().video_modes().next().unwrap(),
             CandlDimension::Classic(800, 400),
             &format!("test candelabre multi window: #{}", win_idx+1),
             CandlOptions::default()

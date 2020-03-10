@@ -42,13 +42,7 @@ fn main() {
         .ignore_warnings();
     */
 
-    let mut graphics = CandlGraphics::<SurfaceDrawer, _, _, _>::init();
-    let vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
-    let fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
-    //let program =
-    graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
-    //
-    //
+    let graphics = CandlGraphics::<SurfaceDrawer, _, _, _>::init();
 
     let mut surface = CandlSurfaceBuilder::new()
         .dim(CandlDimension::Classic(800, 400))
@@ -56,9 +50,15 @@ fn main() {
         .options(CandlOptions::default())
         .render(graphics)
         .state(SurfaceState::default())
+        .video_mode(el.primary_monitor().video_modes().next().unwrap())
         .build(&el)
         .unwrap();
 
+    let graphics = surface.render_mut();
+    let vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
+    let fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
+    //let program =
+    graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
     /*
     let tess = TessBuilder::new(&mut surface)
         .add_vertices(OGL_TRIANGLE)

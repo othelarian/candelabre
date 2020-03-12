@@ -27,7 +27,7 @@ path = "src/simple_window.rs"
 [dependencies]
 candelabre-core = { path = "../candelabre-core" }
 candelabre-windowing = { path = "../candelabre-windowing" }
-glutin = {version = "0.23.0", default-features = false}
+glutin = {version = "0.24.0", default-features = false}
 #luminance = "0.39.0"
 luminance-derive = "0.5.1"
 rand = "0.5.5"

@@ -146,6 +146,8 @@ pub enum CursorMode {
 pub struct CandlOptions {
     cursor_mode: CursorMode,
     decorations: bool,
+    max_size: Option<(u32, u32)>,
+    min_size: Option<(u32, u32)>,
     on_top: bool,
     samples: Option<u32>,
     transparent: bool,
@@ -160,6 +162,8 @@ impl Default for CandlOptions {
         CandlOptions {
             cursor_mode: CursorMode::Visible,
             decorations: true,
+            max_size: None,
+            min_size: None,
             on_top: false,
             samples: None,
             transparent: false,
@@ -183,6 +187,22 @@ impl CandlOptions {
     /// set if the window use decoration
     pub fn set_decorations(self, decorations: bool) -> Self {
         Self { decorations, ..self }
+    }
+
+    /// get the maximal size, if set, or none otherwise
+    pub fn max_size(&self) -> Option<(u32, u32)> { self.max_size }
+
+    /// set the maximal size of the window
+    pub fn set_maw_size(self, max_size: Option<(u32, u32)>) -> Self {
+        Self { max_size, ..self }
+    }
+
+    /// get the minimal size, if set, or none otherwise
+    pub fn min_size(&self) -> Option<(u32, u32)> { self.min_size }
+
+    /// set the minimal size of the window
+    pub fn set_min_size(self, min_size: Option<(u32, u32)>) -> Self {
+        Self { min_size, ..self }
     }
 
     /// get if the window must be always on top, or not
@@ -264,12 +284,18 @@ pub trait CandlWindow {
         title: &str,
         options: CandlOptions
     ) -> Result<WindowedContext<PossiblyCurrent>, CandlError> where T: 'static {
-        let win_builder = WindowBuilder::new()
+        let mut win_builder = WindowBuilder::new()
             .with_title(title)
             .with_transparent(options.transparent())
             .with_decorations(options.decorations())
             .with_always_on_top(options.on_top());
-        let win_builder = match dim {
+        if let Some((w, h)) = options.max_size() {
+            win_builder = win_builder.with_max_inner_size(LogicalSize::new(w, h));
+        }
+        if let Some((w, h)) = options.min_size() {
+            win_builder = win_builder.with_min_inner_size(LogicalSize::new(w, h));
+        }
+        win_builder = match dim {
             CandlDimension::Classic(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h)),
             CandlDimension::Fullscreen =>

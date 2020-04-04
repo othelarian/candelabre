@@ -92,7 +92,7 @@ fn main() {
                         //graphics.apply_clear_color([new_nb(), new_nb(), new_nb(), 1.0]);
                         let bgcol = [new_nb(), new_nb(), new_nb(), 1.0];
                         surface.render_mut().apply_clear_color(bgcol);
-                        surface.state_mut().ask_redraw();
+                        surface.ask_redraw();
                     }
                     VirtualKeyCode::A => {
                         surface.update(Message::IncValue);
@@ -103,10 +103,7 @@ fn main() {
                 _ => ()
             }
             Event::MainEventsCleared => {
-                if surface.state().need_redraw() {
-                    surface.request_redraw();
-                    surface.state_mut().draw_asked();
-                }
+                if surface.check_redraw() { surface.request_redraw(); }
             }
             Event::RedrawRequested(_) => {
                 //

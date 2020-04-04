@@ -460,7 +460,8 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
     ctx: Option<CandlCurrentWrapper>,
     render: R,
     state: D,
-    message: PhantomData<M>
+    message: PhantomData<M>,
+    redraw: bool
 }
 
 impl<R, D, M> CandlWindow for CandlSurface<R, D, M>
@@ -574,7 +575,13 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
         render.set_size((ipsize.width, ipsize.height));
         let ctx = Some(CandlCurrentWrapper::PossiblyCurrent(ctx));
         render.finalize();
-        Ok(CandlSurface {ctx, render, state: init_state, message: PhantomData})
+        Ok(CandlSurface {
+            ctx,
+            render,
+            state: init_state,
+            message: PhantomData,
+            redraw: false
+        })
     }
 
     /// change the title of the window
@@ -604,6 +611,12 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
         self.state.update(message);
     }
 
+    /// requesting the window to handle a redraw
+    pub fn ask_redraw(&mut self) { if !self.redraw { self.redraw = true; } }
+
+    /// check if redraw is requested
+    pub fn check_redraw(&self) -> bool { self.redraw.clone() }
+
     /// requesting redraw for the window
     pub fn request_redraw(&mut self) {
         match self.ctx.as_ref().unwrap() {
@@ -611,6 +624,7 @@ where R: CandlRenderer<R, D, M>, D: CandlUpdate<M> {
                 ctx.window().request_redraw(),
             CandlCurrentWrapper::NotCurrent(_) => ()
         }
+        self.redraw = false;
     }
 
     /// draw on the surface

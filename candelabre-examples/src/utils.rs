@@ -32,14 +32,12 @@ pub fn new_nb() -> f32 {
 
 #[allow(dead_code)]
 pub struct SurfaceState {
-    redraw: bool,
     value: u32,
 }
 
 impl Default for SurfaceState {
     fn default() -> Self {
         Self {
-            redraw: false,
             value: 0
         }
     }
@@ -62,10 +60,6 @@ impl CandlUpdate<Message> for SurfaceState {
 
 #[allow(dead_code)]
 impl SurfaceState {
-    pub fn ask_redraw(&mut self) { self.redraw = true; }
-    pub fn need_redraw(&self) -> bool { self.redraw }
-    pub fn draw_asked(&mut self) { self.redraw = false; }
-
     pub fn get_value(&self) -> u32 { self.value.clone() }
 }
 

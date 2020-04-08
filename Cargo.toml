@@ -2,7 +2,7 @@
 
 members = [
     "candelabre-examples",
-    "candelabre-core",
+    "candelabre-experiment",
     "candelabre-widgets",
     "candelabre-windowing"
 ]

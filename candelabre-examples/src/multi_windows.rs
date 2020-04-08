@@ -5,10 +5,10 @@
 //! * 'A' to add a new window
 //! * 'SPACE' to generate randomly a new background color for the current window
 
-use candelabre_core::{CandlGraphics, CandlRenderer};
+use candelabre_experiment::CandlGraphics;
 use candelabre_windowing::{
     CandlDimension, CandlManager, CandlOptions,
-    CandlSurface, CandlWindow
+    CandlRenderer, CandlSurface, CandlWindow
 };
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
@@ -16,17 +16,20 @@ use glutin::event::{
 use glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
-use utils::{SurfaceState, Message};
+use utils::{SurfaceDrawer, SurfaceState, Message};
 
-type Surface = CandlSurface<CandlGraphics, SurfaceState, Message>;
+type Graphics = CandlGraphics<SurfaceDrawer, SurfaceState, Message, ()>;
+
+type Surface = CandlSurface<Graphics, SurfaceState, Message>;
 
 fn add_win(
     manager: &mut CandlManager<Surface, u32>,
     el: &EventLoop<()>,
-    title: &str
+    title: &str,
 ) {
     manager.create_window_with_state(
         &el,
+        el.primary_monitor().video_modes().next().unwrap(),
         CandlDimension::Classic(800, 400),
         title,
         CandlOptions::default(),

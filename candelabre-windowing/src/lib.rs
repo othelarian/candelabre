@@ -58,7 +58,6 @@
 
 #![deny(missing_docs)]
 
-use candelabre_core::{CandlRenderer, CandlUpdate};
 use gl;
 use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
@@ -73,6 +72,52 @@ use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
 use std::os::raw::c_void;
+
+
+// =======================================================================
+// =======================================================================
+//               CandlRenderer & CandlUpdate
+// =======================================================================
+// =======================================================================
+
+/// Renderer Trait
+/// 
+/// This trait must be used by any structure which want to fill the gap between
+/// a `CandlWindow` and OpenGL.
+pub trait CandlRenderer<R, S: CandlUpdate<M>, M> {
+    /// init the renderer
+    fn init() -> R;
+
+    /// call from `CandlSurface` after the gl initialization
+    fn finalize(&mut self);
+
+    /// set the scale factor when it changed
+    fn set_scale_factor(&mut self, scale_factor: f64);
+
+    /// set the size of the window / surface holding the OpenGL context
+    fn set_size(&mut self, nsize: (u32, u32));
+
+    /// call for redraw the current OpenGL context
+    fn draw_frame(&mut self, state: &S);
+}
+
+/// Update Trait
+/// 
+/// When a surface become stateful, there is a way to do it, and it goes with
+/// this trait. It's the bridge between the state and the renderer, as it force
+/// the state handler to define an update method which then can be use by the
+/// surface.
+pub trait CandlUpdate<M> {
+    /// the state handler of
+    fn update(&mut self, message: M);
+}
+
+// =======================================================================
+// =======================================================================
+//               Candelabre windowing utilities
+// =======================================================================
+// =======================================================================
+
 
 /// The error of Candelabre Windowing
 /// 

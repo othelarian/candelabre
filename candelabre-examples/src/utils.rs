@@ -16,7 +16,8 @@ pub const OGL_TRIANGLE: [Vertex; 3] = [
 
 */
 
-use candelabre_core::{CandlGraphicsDrawer, CandlUpdate};
+use candelabre_experiment::CandlGraphicsDrawer;
+use candelabre_windowing::CandlUpdate;
 
 use rand::Rng;
 

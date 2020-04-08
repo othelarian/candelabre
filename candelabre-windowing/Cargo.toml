@@ -5,14 +5,5 @@ authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-
-candelabre-core = {path = "../candelabre-core"}
-
 gl = "0.14.0"
 glutin = "0.24.0"
-
-#[dependencies.luminance]
-#version = "0.38.0"
-#git = "https://github.com/othelarian/luminance-rs.git"
-#branch = "multiwin"
-#features = ["multi-contexts"]

@@ -4,11 +4,10 @@
 //! randomly a new clear color (background color of the context), and 'A' to
 //! change the name of the window.
 
-use candelabre_core::{
-    CandlGraphics, CandlRenderer, CandlShaderVariant
-};
+use candelabre_experiment::{CandlGraphics, CandlShaderVariant};
 use candelabre_windowing::{
-    CandlDimension, CandlOptions, CandlSurfaceBuilder, CandlWindow
+    CandlDimension, CandlOptions, CandlRenderer,
+    CandlSurfaceBuilder, CandlWindow
 };
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
@@ -55,10 +54,10 @@ fn main() {
         .unwrap();
 
     let graphics = surface.render_mut();
-    let vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
-    let fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
+    let _vs_id = graphics.gen_shader(CandlShaderVariant::VertexShader, VS).unwrap();
+    let _fs_id = graphics.gen_shader(CandlShaderVariant::FragmentShader, FS).unwrap();
     //let program =
-    graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
+    //graphics.gen_program(Some(fs_id), Some(vs_id)).unwrap();
     /*
     let tess = TessBuilder::new(&mut surface)
         .add_vertices(OGL_TRIANGLE)

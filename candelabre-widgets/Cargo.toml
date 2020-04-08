@@ -5,7 +5,6 @@ authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-
-candelabre-core = {path = "../candelabre-core"}
+candelabre-windowing = { path = "../candelabre-windowing" }
 
 #nanovg

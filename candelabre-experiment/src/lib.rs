@@ -1,59 +1,14 @@
 //! # Welcome!
+//!
+//! this crate was initially created to make the bridge between candelabre
+//! windowing and widget crates, and was called "core", but I realized it
+//! wasn't a really good idea, and tended to complexify a project, with
+//! always a need to call candelabre-core just for two traits.
 //! 
-//! This crate serve as a base layer for candelabre windowing and widgets
-//! crates, and provide them some useful tools to interact in a safer way with
-//! OpenGL contex.
-//! 
-//! # `CandlRenderer`
-//! 
-//! This trait is used by candelabre-windowing surface and manager to handle
-//! OpenGL context safely. Why this trait? Simple: being able to use
-//! `CandlGraphics`, the renderer which come along with candelabre project, or
-//! make your own renderer if you think yours will be better (I think it's
-//! quite easy, try it).
-//! 
-//! # `CandlGraphics`
-//! 
-//! This is currently the core element of this crate, and provide to a
-//! `CandlSurface` the basic to interact with OpenGL.
-//! 
-//! # `CandlUpdate`
-//! 
-//! Not a real OpenGL necessity, `CandlUpdate` is here to support the capacity
-//! of candelabre-windowing elements to be stateful. This trait define the
-//! way a state must be set up inside a `CandlSurface` to maximize the usage of
-//! `CandlGraphics`.
+//! So now, it's the crate for testing new things in candelabre project!
+//! ^^
 
-#[deny(missing_docs)]
-
-/// Renderer Trait
-/// 
-/// This trait must be used by any structure which want to fill the gap between
-/// a `CandlWindow` and OpenGL.
-pub trait CandlRenderer<R, S: CandlUpdate<M>, M> {
-    /// init the renderer
-    fn init() -> R;
-
-    /// call from `CandlSurface` after the gl initialization
-    fn finalize(&mut self);
-
-    /// set the scale factor when it changed
-    fn set_scale_factor(&mut self, scale_factor: f64);
-
-    /// set the size of the window / surface holding the OpenGL context
-    fn set_size(&mut self, nsize: (u32, u32));
-
-    /// call for redraw the current OpenGL context
-    fn draw_frame(&mut self, state: &S);
-}
-
-/// State Trait
-/// 
-/// When a surface become stateful, there is a way to do it, and it goes with
-/// this trait. It's the bridge between the state and the renderer.
-pub trait CandlUpdate<M> {
-    fn update(&mut self, message: M);
-}
+#![deny(missing_docs)]
 
 // =======================================================================
 // =======================================================================
@@ -72,8 +27,8 @@ pub use self::candl_graphics::{
 };
 
 mod candl_graphics {
-    use super::CandlRenderer;
-    use super::CandlUpdate;
+    use candelabre_windowing::CandlRenderer;
+    use candelabre_windowing::CandlUpdate;
     use gl::{self, types::GLuint};
     use std::ffi::CString;
     use std::marker::PhantomData;
@@ -84,8 +39,11 @@ mod candl_graphics {
     /// Because each shader is different, each shader needs its own variation.
     #[derive(Debug, PartialEq)]
     pub enum CandlShaderVariant {
+        /// vertex shader
         VertexShader,
+        /// geometry shader
         GeometryShader,
+        /// fragment shader
         FragmentShader
     }
 
@@ -208,7 +166,9 @@ mod candl_graphics {
     /// Because a renderer can generate error, let's do this properly
     #[derive(Debug)]
     pub enum CandlGraphicsError {
+        /// error with the shader (creation, compilation, etc)
         ShaderError(&'static str),
+        /// error with the program generation
         ProgramError(&'static str)
     }
 
@@ -340,6 +300,7 @@ mod candl_graphics {
             self.programs.remove(id)
         }
 
+        /// make use of a program already added
         pub fn use_program(&self,id: usize) {
             unsafe { gl::UseProgram(self.get_program(id).get_ptr()); }
         }

@@ -3,7 +3,7 @@
 //! 
 //! ???
 
-use candelabre_core::{CandlRenderer, CandlUpdate};
+use candelabre_windowing::{CandlRenderer, CandlUpdate};
 
 pub struct SurfaceState();
 

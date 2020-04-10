@@ -3,6 +3,7 @@ name = "candelabre-experiment"
 version = "0.1.0"
 authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 candelabre-windowing = { path = "../candelabre-windowing" }

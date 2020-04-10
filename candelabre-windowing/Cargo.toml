@@ -3,6 +3,12 @@ name = "candelabre-windowing"
 version = "0.2.0"
 authors = ["othelarian <le.maitre.killian@gmail.com>"]
 edition = "2018"
+licence = "Apache-2.0"
+description = "handle one or multiple windows easily"
+keywords = ["graphics", "gui", "ui", "opengl"]
+homepage = "https://github.com/othelarian/candelabre"
+repository = "https://github.com/othelarian/candelabre/tree/master/candelabre-windowing"
+readme = "README.md"
 
 [dependencies]
 gl = "0.14.0"

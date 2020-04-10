@@ -25,11 +25,13 @@ path = "src/simple_window.rs"
 #path = "src/widget_demo.rs"
 
 [dependencies]
-candelabre-experiment = { path = "../candelabre-experiment" }
 candelabre-windowing = { path = "../candelabre-windowing" }
+gl = "0.14.0"
 glutin = {version = "0.24.0", default-features = false}
 #luminance = "0.39.0"
 luminance-derive = "0.5.1"
+nvg = "0.5.9"
+nvg-gl = "0.5.4"
 rand = "0.5.5"
 
 [dependencies.luminance]

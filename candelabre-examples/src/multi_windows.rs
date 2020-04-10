@@ -4,54 +4,47 @@
 //! * 'ESC' to close a window
 //! * 'A' to add a new window
 //! * 'SPACE' to generate randomly a new background color for the current window
+//! * 'C' to randomly change the color of the triangle of the current window
 
-use candelabre_experiment::CandlGraphics;
 use candelabre_windowing::{
     CandlDimension, CandlManager, CandlOptions,
-    CandlRenderer, CandlSurface, CandlWindow
+    CandlRenderer, CandlWindow
 };
 use glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
-use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+use glutin::monitor::VideoMode;
 
 mod utils;
-use utils::{SurfaceDrawer, SurfaceState, Message};
-
-type Graphics = CandlGraphics<SurfaceDrawer, SurfaceState, Message, ()>;
-
-type Surface = CandlSurface<Graphics, SurfaceState, Message>;
+use utils::{DemoSurface, SurfaceDrawer, SurfaceState, Message};
 
 fn add_win(
-    manager: &mut CandlManager<Surface, u32>,
-    el: &EventLoop<()>,
-    title: &str,
+    manager: &mut CandlManager<DemoSurface, u32>,
+    el: &EventLoopWindowTarget<()>,
+    video_mode: VideoMode,
+    title_nb: u32
 ) {
     manager.create_window_with_state(
         &el,
-        el.primary_monitor().video_modes().next().unwrap(),
+        video_mode,
         CandlDimension::Classic(800, 400),
-        title,
+        &format!("multi window #{}", title_nb),
         CandlOptions::default(),
-        CandlGraphics::init(),
+        SurfaceDrawer::init(),
         SurfaceState::default()
     ).unwrap();
 }
 
 fn main() {
     let el = EventLoop::new();
-    let mut win_manager = CandlManager::new_with_state(0);
+    let video_mode = el.primary_monitor().video_modes().next().unwrap();
+    let mut win_manager = CandlManager::new_with_state(1);
 
     // first window
-    add_win(&mut win_manager, &el, "first window");
+    add_win(&mut win_manager, &el, video_mode, 0);
 
-    //
-    //
-    println!("empty? {}", win_manager.is_empty());
-    println!("window ids: {:?}", win_manager.list_window_ids());
-    //
-
-    el.run(move |evt, _, ctrl_flow| {
+    el.run(move |evt, el_wt, ctrl_flow| {
         match evt {
             Event::LoopDestroyed => return,
             Event::WindowEvent {event, window_id} => match event {
@@ -64,42 +57,56 @@ fn main() {
                         virtual_keycode: Some(VirtualKeyCode::Escape),
                         ..
                     }, ..
-                } => win_manager.remove_window(window_id),
-                WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state: ElementState::Released,
-                        virtual_keycode: Some(VirtualKeyCode::Space),
-                        ..
-                    }, ..
-                } => { // change the background of the current window
-                    //
-                    // TODO : change randomly the background color
-                    //
+                } => {
+                    win_manager.remove_window(window_id);
+                    if win_manager.is_empty() { *ctrl_flow = ControlFlow::Exit; }
                 }
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput {
                         state: ElementState::Released,
-                        virtual_keycode: Some(VirtualKeyCode::A),
+                        virtual_keycode: Some(keycode),
                         ..
                     }, ..
-                } => { // create a new window
-                    //
-                    // TODO : add a new window
-                    //
+                } => match keycode {
+                    VirtualKeyCode::Space => {
+                        let surface = win_manager.get_current(window_id).unwrap();
+                        surface.update(Message::RandomBgColor);
+                        surface.ask_redraw();
+                    }
+                    VirtualKeyCode::A => {
+                        let video_mode = win_manager
+                            .get_current(window_id)
+                            .unwrap()
+                            .get_window()
+                            .unwrap()
+                            .primary_monitor()
+                            .video_modes()
+                            .next()
+                            .unwrap();
+                        let nb = win_manager.state().clone();
+                        {
+                            let state = win_manager.state_mut();
+                            *state = *state + 1;
+                        }
+                        add_win(&mut win_manager, &el_wt, video_mode.clone(), nb);
+                    }
+                    VirtualKeyCode::C => {
+                        let surface = win_manager.get_current(window_id).unwrap();
+                        surface.update(Message::RandomTriangleColor);
+                        surface.ask_redraw();
+                    }
+                    _ => ()
                 }
                 _ => ()
             }
             Event::MainEventsCleared => {
-                //
-                // TODO : mark the window who need a redraw
-                //
+                for wid in win_manager.list_window_ids() {
+                    let surface = win_manager.get_current(wid).unwrap();
+                    if surface.check_redraw() { surface.request_redraw(); }
+                }
             }
-            Event::RedrawRequested(_win_id) => {
-                //let surface = win_manager.get_current(win_id.clone()).unwrap();
-                //
-                //
-                //
-            }
+            Event::RedrawRequested(win_id) =>
+                win_manager.get_current(win_id).unwrap().draw(),
             _ => ()
         }
         if win_manager.is_empty() { *ctrl_flow = ControlFlow::Exit }

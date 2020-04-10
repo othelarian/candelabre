@@ -1,11 +1,35 @@
 # Candelabre - Windowing system
 
-Hi dear reader, this crate is for you if you want to be able to use
-[luminance](https://github.com/phaazon/luminance-rs) or candelabre-widgets, by
-giving you a simple way to spawn one or multiple windows! For each window, an
-OpenGL context is waiting for your next luminous idea to suit it up.
+Hi dear reader! This crate is for you if you want to quickly set up an app with
+one or multiple windows, in full rust!
 
-### Actively developped
+This crate is built in the idea in mind to use it with other crates, mainly
+[luminance](https://github.com/phaazon/luminance-rs) or candelabre-widgets.
+The idea is to don't have to write some boilerplate around glutin to make it
+work, but let you play with the event loop. Just include a CandlSurface, and
+the traits you need, and you're good to go! Working with OpenGL? Higher level
+with nanovg/nvg? Want to explore something else? Now you don't need to use sdl
+or glfw, or get down in the guts with glutin.
+
+## DISCLAIMER
+
+Two or three things to keep in mind.
+
+First, this project was originally wrote to make app on old computers, without
+vulkan support, and cross platform, so it use OpenGL as it's the only way to be
+fully cross platform and old computer compliant. So no, there will be no vulkan
+support, as it isn't the purpose of this projecT.
+
+Second, the main goal is to handle windowing and widgets for the coders, not
+everything. The event loop is completely at the coders discretion, because I
+believe it's better to just take care of one thing correctly. So
+candelabre-windowing take care of the windowing, not the entire app.
+
+At last, this project isn't over, and a lot of improvment is on their way.
+Even if it's stable enough to start building real app with (it's already done),
+this crate will evolve, mainly for the state part.
+
+## Actively developped
 
 during the creation process of this library some ideas grow about what to do
 better. The current version is already stable, but there is one aspect I want
@@ -36,4 +60,4 @@ You can find a example of the `CandlManager` in the
 NOTE: You can't create a window and add it to the manager after, because of
 some internal checks. You must choose if you're going multi or not, but don't
 panic, moving from one to another is quite easy, and if it's still too obscure,
-open an issue.
+open an issue ;-) .

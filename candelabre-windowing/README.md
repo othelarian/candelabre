@@ -3,10 +3,10 @@
 Hi dear reader! This crate is for you if you want to quickly set up an app with
 one or multiple windows, in full rust!
 
-This crate is built in the idea in mind to use it with other crates, mainly
+This crate was build with in mind the idea to use it with other crates, mainly
 [luminance](https://github.com/phaazon/luminance-rs) or candelabre-widgets.
-The idea is to don't have to write some boilerplate around glutin to make it
-work, but let you play with the event loop. Just include a CandlSurface, and
+The target was to don't have to write some boilerplate around glutin to make it
+work, but let you play with the event loop. Just include a `CandlSurface`, and
 the traits you need, and you're good to go! Working with OpenGL? Higher level
 with nanovg/nvg? Want to explore something else? Now you don't need to use sdl
 or glfw, or get down in the guts with glutin.

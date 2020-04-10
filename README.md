@@ -1,6 +1,6 @@
 # candelabre
 
-# <span style='color:red;font-weight:bold'>WARNING: libs still in developement (but working ;-) )</span>
+## <span style='color:red;font-weight:bold'>WARNING: libs still in developement (but working ;-) )</span>
 
 Welcome dear reader! You may ask yourself "where am I?", and I have an answer for you: in candelabre main repository!
 
@@ -16,7 +16,8 @@ Candelabre is a multilib project which aims to enable quick prototyping applicat
 
 The project is divide in several libraries:
 
-* 
+* [candelabre-windowing](https://github.com/othelarian/candelabre/tree/master/candelabre-windowing)
+* [candelabre-widgets](https://github.com/othelarian/candelabre/tree/master/candelabre-widgets) (NOT USABLE YET)
 
 ## Some history
 
@@ -26,16 +27,13 @@ So, the candelabre project is originally a attempt to use OpenGL with the help o
 
 ## Crates
 
-### Candelabre core
-
-TODO
-
 ### Candelabre windowing system
 
-This crate helps you create windows for your application.
-
-TODO : add doc link
+This crate helps you create windows for your application. Check the
+[doc](https://github.com/othelarian/candelabre/tree/master/candelabre-windowing)
+for more info
 
 ### Candelabre widgets
 
-TODO
+This crate isn't usable yet, some work is needed. If you want to participate to
+the work on this lib, open an issue! ;-)

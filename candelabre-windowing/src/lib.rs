@@ -59,6 +59,7 @@
 #![deny(missing_docs)]
 
 use gl;
+pub use glutin;
 use glutin::{
     Api, ContextBuilder, GlProfile, GlRequest, NotCurrent,
     PossiblyCurrent, WindowedContext

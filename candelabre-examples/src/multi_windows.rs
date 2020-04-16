@@ -10,11 +10,13 @@ use candelabre_windowing::{
     CandlDimension, CandlManager, CandlOptions,
     CandlRenderer, CandlWindow
 };
-use glutin::event::{
+use candelabre_windowing::glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
-use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
-use glutin::monitor::VideoMode;
+use candelabre_windowing::glutin::event_loop::{
+    ControlFlow, EventLoop, EventLoopWindowTarget
+};
+use candelabre_windowing::glutin::monitor::VideoMode;
 
 mod utils;
 use utils::{DemoSurface, SurfaceDrawer, SurfaceState, Message};

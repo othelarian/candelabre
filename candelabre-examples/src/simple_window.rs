@@ -9,10 +9,11 @@ use candelabre_windowing::{
     CandlDimension, CandlOptions, CandlRenderer,
     CandlSurfaceBuilder, CandlWindow
 };
-use glutin::event::{
-    ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
+use candelabre_windowing::glutin::event::{
+    ElementState, Event, KeyboardInput, StartCause,
+    VirtualKeyCode, WindowEvent
 };
-use glutin::event_loop::{ControlFlow, EventLoop};
+use candelabre_windowing::glutin::event_loop::{ControlFlow, EventLoop};
 
 mod utils;
 use utils::{DemoSurface, Message, SurfaceState, SurfaceDrawer};
@@ -41,6 +42,8 @@ fn main() {
         *ctrl_flow = ControlFlow::Wait;
         match evt {
             Event::LoopDestroyed => return,
+            Event::NewEvents(StartCause::Init) =>
+                *ctrl_flow = ControlFlow::Wait,
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::Resized(physical_size) => surface.resize(physical_size),
                 WindowEvent::CloseRequested

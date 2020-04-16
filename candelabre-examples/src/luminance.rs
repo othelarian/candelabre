@@ -5,13 +5,15 @@ use candelabre_windowing::{
     CandlCurrentWrapper, CandlDimension, CandlElement, CandlError,
     CandlManager, CandlOptions, CandlWindow
 };
-use glutin::event::{
+use candelabre_windowing::glutin::event::{
     ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 };
-use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
-use glutin::dpi::PhysicalSize;
-use glutin::monitor::VideoMode;
-use glutin::window::WindowId;
+use candelabre_windowing::glutin::event_loop::{
+    ControlFlow, EventLoop, EventLoopWindowTarget
+};
+use candelabre_windowing::glutin::dpi::PhysicalSize;
+use candelabre_windowing::glutin::monitor::VideoMode;
+use candelabre_windowing::glutin::window::WindowId;
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
 use luminance::pipeline::PipelineState;
